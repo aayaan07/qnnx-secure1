@@ -74,6 +74,10 @@ def kem_decapsulate(payload: DecapsulationRequest):
 # Include router on API v1 string
 app.include_router(router, prefix=settings.API_V1_STR, tags=["KEM"])
 
+# Include the monitoring router
+from app.routes.monitoring import router as monitoring_router
+app.include_router(monitoring_router, prefix=settings.API_V1_STR, tags=["Monitoring"])
+
 @app.get("/", include_in_schema=False)
 def root():
     return {"message": "Welcome to QVPN Gateway Control Plane. Visit /docs for documentation."}

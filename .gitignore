@@ -19,3 +19,5 @@ tests/*
 check_stats.py
 fix_db_schema.py
 create_mock_data.py
+clear_db.py
+scratch/
