@@ -1,4 +1,5 @@
-﻿import os
+import os
+import ctypes
 import socket
 import datetime
 import json
@@ -7,10 +8,24 @@ import time
 import urllib.request
 import win32evtlog
 
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+
 class EnterpriseMonitoringAgent:
     def __init__(self):
         self.hostname = socket.gethostname()
         self.current_user = os.getlogin()
+        # Prime psutil CPU counters so first report has valid readings instead of all zeros
+        for proc in psutil.process_iter():
+            try:
+                proc.cpu_percent(interval=None)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
 
     def get_public_ip(self):
         """Retrieves the machine's external public IP address using a lightweight API call."""
@@ -50,7 +65,7 @@ class EnterpriseMonitoringAgent:
             for conn in psutil.net_connections(kind='inet'):
                 if conn.status == 'ESTABLISHED' and conn.raddr:
                     connections.append({
-                        "pid": conn.pid,
+                        "pid": conn.pid if conn.pid is not None else "N/A (requires admin)",
                         "local_port": conn.laddr.port,
                         "remote_ip": conn.raddr.ip,
                         "remote_port": conn.raddr.port
@@ -70,9 +85,9 @@ class EnterpriseMonitoringAgent:
             records = win32evtlog.ReadEventLog(hand, flags, 0)
             
             for record in records:
-                if record.EventID in target_event_ids:
+                if (record.EventID & 0xFFFF) in target_event_ids:
                     events_found.append({
-                        "event_id": record.EventID,
+                        "event_id": record.EventID & 0xFFFF,
                         "time_generated": record.TimeGenerated.Format(),
                         "record_number": record.RecordNumber
                     })
@@ -128,6 +143,11 @@ def push_to_backend(payload):
 
 
 if __name__ == "__main__":
+    if not is_admin():
+        print("[!] WARNING: Not running as Administrator.")
+        print("[!] Security Event Log and network PIDs will be unavailable.")
+        print("[!] Right-click your terminal and select 'Run as Administrator' for full telemetry.\n")
+
     agent = EnterpriseMonitoringAgent()
     print("[*] Continuous Monitoring Agent active. Press Ctrl+C to terminate application.\n")
     

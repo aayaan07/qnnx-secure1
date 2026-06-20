@@ -115,7 +115,7 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr); /* Expanded to 5 columns */
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
         }
 
@@ -230,7 +230,7 @@
             if (isConnected) {
                 connectionBtn.classList.add('connected');
                 btnMainText.textContent = "SECURE";
-                btnStatusText.textContent = "Disconnecting...?";
+                btnStatusText.textContent = "Click to Disconnect";
                 
                 timerInterval = setInterval(() => {
                     uptimeSeconds++;
