@@ -1,4 +1,4 @@
-# QVPN – Task 3: Traffic Routing Module
+Traffic Routing Module
 
 A local SOCKS5 proxy server that intercepts browser traffic and forwards it either directly to the internet (current mode) or through the QVPN encrypted tunnel (once Task 1's client is ready).
 
