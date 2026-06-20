@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Text, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, Text, Integer, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -7,8 +7,21 @@ from app.core.database import Base
 
 class TunnelState(Base):
     """
-    Live health/status of a tunnel tied to one session. Updated continuously
-    while the tunnel is active (e.g. on every heartbeat packet).
+    Live health/status of a tunnel tied to one session.
+
+    Updated continuously while the tunnel is active (e.g. on every heartbeat
+    packet from the client). The gateway socket server queries this table to
+    decide whether to keep forwarding traffic or to close the connection.
+
+    Status values:
+      CONNECTING    → session established, waiting for first traffic packet
+      ACTIVE        → traffic flowing normally
+      DEGRADED      → missed heartbeats but not yet expired
+      DISCONNECTED  → client cleanly disconnected
+      TIMED_OUT     → no heartbeat within HEARTBEAT_TIMEOUT_SECONDS
+
+    The health monitor task in socket_server.py transitions ACTIVE → TIMED_OUT
+    when last_heartbeat is older than the configured threshold.
     """
     __tablename__ = "tunnel_states"
 
@@ -16,7 +29,7 @@ class TunnelState(Base):
 
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, unique=True)
 
-    # status values: "CONNECTING", "ACTIVE", "DEGRADED", "DISCONNECTED"
+    # Status values: "CONNECTING", "ACTIVE", "DEGRADED", "DISCONNECTED", "TIMED_OUT"
     status = Column(Text, nullable=False, server_default="CONNECTING")
 
     remote_ip = Column(Text)
@@ -30,3 +43,9 @@ class TunnelState(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+
+# Indexes for monitoring queries
+_idx_tunnel_status = Index("ix_tunnel_states_status", TunnelState.status)
+_idx_tunnel_session_id = Index("ix_tunnel_states_session_id", TunnelState.session_id)
+_idx_tunnel_last_heartbeat = Index("ix_tunnel_states_last_heartbeat", TunnelState.last_heartbeat)

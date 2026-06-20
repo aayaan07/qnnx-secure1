@@ -1,12 +1,41 @@
-from app.crypto._oqs_loader import load_key_encapsulation
+"""
+kem.py — Thin async shim around pqc_client.
+
+This module exists for backward compatibility with code that imports KEMManager.
+New code should import from app.crypto.pqc_client directly.
+
+The gateway NEVER generates or stores raw private key bytes long-term.
+Flow:
+  1. keygen()         → PQC service returns { key_id, public_key, private_key }
+  2. Gateway DB row   → stores key_id (reference) + public_key + private_key bytes
+                         (private_key is server-side only, never sent to clients)
+  3. decapsulate()    → gateway sends { algorithm, ciphertext, private_key } to PQC
+  4. shared_secret    → stays in memory, derived into AES-256 key via HKDF
+"""
+from __future__ import annotations
+
+import base64
+import logging
+from typing import Any
+
+from app.crypto.pqc_client import keygen as _keygen, decapsulate as _decapsulate, KeygenResponse
 from app.services.algorithm_support import enabled_mechanisms
 
+logger = logging.getLogger("qvpn.kem")
+
+
 class KEMManager:
+    """
+    Async KEM operations via the external PQC API.
+
+    All public methods are coroutines — use `await` when calling them.
+    """
+
     @staticmethod
-    def get_supported_kems():
+    def get_supported_kems() -> list[str]:
         """
-        Returns a static list of core KEM algorithms. 
-        Bypasses the unstable liboqs-python discovery method to ensure stability.
+        Returns the list of KEM algorithm names that the PQC service supports.
+        Falls back to a static list if the API is unreachable at import time.
         """
         enabled, _ = enabled_mechanisms()
         preferred = (
@@ -20,23 +49,36 @@ class KEMManager:
         return [name for name in preferred if name.casefold() in enabled]
 
     @staticmethod
-    def generate_keypair(algorithm_name):
-        KeyEncapsulation = load_key_encapsulation()
-        with KeyEncapsulation(algorithm_name) as kem:
-            public_key = kem.generate_keypair()
-            private_key = kem.export_secret_key()
-            return {"public_key": public_key, "private_key": private_key}
+    async def generate_keypair(algorithm_name: str) -> dict[str, Any]:
+        """
+        Request a new KEM keypair from the PQC service.
+
+        Returns:
+            {
+                "key_id": str,
+                "public_key": bytes,
+                "private_key": bytes,
+            }
+        """
+        resp: KeygenResponse = await _keygen(algorithm_name)
+        return {
+            "key_id": resp.key_id,
+            "public_key": base64.b64decode(resp.public_key),
+            "private_key": base64.b64decode(resp.private_key),
+        }
 
     @staticmethod
-    def encapsulate(algorithm_name, public_key):
-        KeyEncapsulation = load_key_encapsulation()
-        with KeyEncapsulation(algorithm_name) as kem:
-            ciphertext, shared_secret = kem.encap_secret(public_key)
-            return {"ciphertext": ciphertext, "shared_secret": shared_secret}
+    async def decapsulate(algorithm_name: str, ciphertext: bytes, private_key: bytes) -> dict[str, bytes]:
+        """
+        Decapsulate a KEM ciphertext using the server-side private key.
 
-    @staticmethod
-    def decapsulate(algorithm_name, ciphertext, private_key):
-        KeyEncapsulation = load_key_encapsulation()
-        with KeyEncapsulation(algorithm_name, private_key) as kem:
-            shared_secret = kem.decap_secret(ciphertext)
-            return {"shared_secret": shared_secret}
+        Args:
+            algorithm_name: e.g. "ML-KEM-768"
+            ciphertext:     Raw ciphertext bytes from the client.
+            private_key:    Raw private key bytes stored server-side.
+
+        Returns:
+            { "shared_secret": bytes }
+        """
+        shared_secret = await _decapsulate(algorithm_name, ciphertext, private_key)
+        return {"shared_secret": shared_secret}

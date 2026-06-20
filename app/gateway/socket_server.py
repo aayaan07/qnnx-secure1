@@ -1,340 +1,357 @@
-import os
-import asyncio
-import logging
+"""
+socket_server.py — Raw TCP VPN tunnel gateway.
 
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+This module runs a persistent TCP socket server on VPN_PORT (default 5151).
+Each connection follows this protocol:
+
+  Wire protocol — Handshake phase:
+    CLIENT → GATEWAY:  [4-byte length][client_identifier UTF-8 bytes]
+    CLIENT → GATEWAY:  [4-byte length][kem_ciphertext bytes]
+    GATEWAY → CLIENT:  [4-byte length][session_id UTF-8 bytes]
+
+  Wire protocol — Traffic phase:
+    CLIENT → GATEWAY:  [4-byte length][nonce(12) + encrypted(target_json)]
+    CLIENT → GATEWAY:  [4-byte length][nonce(12) + encrypted(raw_traffic)]  (repeated)
+    GATEWAY → CLIENT:  [4-byte length][nonce(12) + encrypted(raw_traffic)]  (repeated)
+
+  Heartbeat (client → gateway):
+    CLIENT → GATEWAY:  [4-byte length][nonce(12) + encrypted(b"ping")]
+
+AES key lifecycle:
+  - Derived from KEM shared_secret via HKDF in complete_handshake().
+  - Stored only in session_store (in-memory TTL cache).
+  - NEVER written to any database or log file.
+  - Evicted from session_store on disconnect, timeout, or server shutdown.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from app.core.config import settings
 from app.core.database import SessionLocal
-from app.services.gateway_service import establish_session, HandshakeError
+from app.core.exceptions import HandshakeError, AEADError
+from app.gateway.session_store import session_store
+from app.services.handshake_service import complete_handshake
+from app.services.session_service import close_session, expire_stale_sessions
 
 logger = logging.getLogger("qvpn.gateway")
 
 HOST = "0.0.0.0"
-PORT = 5151  # the raw VPN tunnel port -- separate from the FastAPI HTTP port
+VPN_PORT = 5151  # Raw TCP VPN tunnel port — separate from the FastAPI HTTP port
 
 
-async def _read_length_prefixed(reader: asyncio.StreamReader) -> bytes:
-    """
-    Reads one length-prefixed field from the stream:
-    first 4 bytes = big-endian length, then that many bytes of payload.
-    """
+# ---------------------------------------------------------------------------
+# Wire protocol helpers
+# ---------------------------------------------------------------------------
+
+
+async def _read_framed(reader: asyncio.StreamReader) -> bytes:
+    """Read one length-prefixed frame: 4-byte big-endian length + payload."""
     length_bytes = await reader.readexactly(4)
     length = int.from_bytes(length_bytes, byteorder="big")
-    payload = await reader.readexactly(length)
-    return payload
+    return await reader.readexactly(length)
 
 
-async def pipe_client_to_remote(client_reader: asyncio.StreamReader, remote_writer: asyncio.StreamWriter, cipher: AESGCM, session_id: str):
-    """Reads encrypted VPN traffic from the client, decrypts it, and forwards it to the internet."""
+def _write_framed(writer: asyncio.StreamWriter, data: bytes) -> None:
+    """Write one length-prefixed frame."""
+    writer.write(len(data).to_bytes(4, byteorder="big"))
+    writer.write(data)
+
+
+# ---------------------------------------------------------------------------
+# Traffic forwarding — client → remote (decrypt then forward)
+# ---------------------------------------------------------------------------
+
+
+async def _pipe_client_to_remote(
+    client_reader: asyncio.StreamReader,
+    remote_writer: asyncio.StreamWriter,
+    cipher: AESGCM,
+    session_id: str,
+) -> None:
+    """Decrypt client-side encrypted traffic and forward it to the remote server."""
     accumulated_bytes = 0
     accumulated_packets = 0
+
     try:
         while True:
-            # 1. Read the length prefix (4 bytes)
+            # Read length-framed encrypted payload
             length_bytes = await client_reader.readexactly(4)
             length = int.from_bytes(length_bytes, byteorder="big")
-            
-            # 2. Read the full encrypted payload
             encrypted_payload = await client_reader.readexactly(length)
-            
-            # 3. Extract the 12-byte nonce and the actual ciphertext
+
+            # AES-GCM decrypt: nonce is first 12 bytes
             nonce = encrypted_payload[:12]
             ciphertext = encrypted_payload[12:]
-            
-            # 4. Decrypt the raw traffic
             raw_traffic = cipher.decrypt(nonce, ciphertext, None)
-            
-            # Check for heartbeat ping control packet
+
+            # Heartbeat control packet
             if raw_traffic == b"ping":
-                logger.info(f"[GATEWAY] Received heartbeat (ping) for session {session_id}")
+                logger.debug("[TUNNEL] Heartbeat (ping) for session=%s", session_id)
                 await _record_heartbeat(session_id)
                 continue
-            
-            # 5. Forward the decrypted traffic out to the internet
+
+            # Forward decrypted traffic upstream
             remote_writer.write(raw_traffic)
             await remote_writer.drain()
-            
-            # Accumulate stats
+
+            # Batch stats
             accumulated_bytes += len(raw_traffic)
             accumulated_packets += 1
-            
-            # Flush stats periodically to avoid DB traffic overload
             if accumulated_packets % 10 == 0:
-                await _flush_traffic_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
-                accumulated_bytes = 0
-                accumulated_packets = 0
-            
+                await _flush_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
+                accumulated_bytes = accumulated_packets = 0
+
     except (asyncio.IncompleteReadError, ConnectionError):
-        logger.info("[TUNNEL] Client disconnected upstream.")
-    except Exception as e:
-        logger.error(f"[TUNNEL] Upstream decryption error: {e}")
+        logger.info("[TUNNEL] Client disconnected upstream (session=%s)", session_id)
+    except Exception as exc:
+        logger.error("[TUNNEL] Upstream error for session=%s: %s", session_id, exc)
     finally:
         remote_writer.close()
         if accumulated_packets > 0 or accumulated_bytes > 0:
             try:
-                await _flush_traffic_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
+                await _flush_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
             except Exception:
                 pass
 
 
-async def pipe_remote_to_client(remote_reader: asyncio.StreamReader, client_writer: asyncio.StreamWriter, cipher: AESGCM, session_id: str):
-    """Reads raw internet traffic, encrypts it, and forwards it down the VPN tunnel."""
+# ---------------------------------------------------------------------------
+# Traffic forwarding — remote → client (encrypt then forward)
+# ---------------------------------------------------------------------------
+
+
+async def _pipe_remote_to_client(
+    remote_reader: asyncio.StreamReader,
+    client_writer: asyncio.StreamWriter,
+    cipher: AESGCM,
+    session_id: str,
+) -> None:
+    """Read raw internet traffic, encrypt it, and forward it to the VPN client."""
     accumulated_bytes = 0
     accumulated_packets = 0
+
     try:
         while True:
-            # 1. Read raw response from the internet (up to 4KB at a time)
             raw_traffic = await remote_reader.read(4096)
             if not raw_traffic:
-                break # Connection closed by remote server
-                
-            # 2. Generate a secure 12-byte nonce for this specific packet
+                break  # Remote closed connection
+
             nonce = os.urandom(12)
-            
-            # 3. Encrypt the data
             ciphertext = cipher.encrypt(nonce, raw_traffic, None)
-            
-            # 4. Package it: Nonce + Ciphertext
             encrypted_payload = nonce + ciphertext
-            
-            # 5. Send length prefix, then the payload back to the client
-            client_writer.write(len(encrypted_payload).to_bytes(4, byteorder="big"))
-            client_writer.write(encrypted_payload)
+
+            _write_framed(client_writer, encrypted_payload)
             await client_writer.drain()
-            
-            # Accumulate stats
+
             accumulated_bytes += len(raw_traffic)
             accumulated_packets += 1
-            
-            # Flush stats periodically
             if accumulated_packets % 10 == 0:
-                await _flush_traffic_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
-                accumulated_bytes = 0
-                accumulated_packets = 0
-            
+                await _flush_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
+                accumulated_bytes = accumulated_packets = 0
+
     except ConnectionError:
-        logger.info("[TUNNEL] Remote server closed downstream.")
-    except Exception as e:
-        logger.error(f"[TUNNEL] Downstream encryption error: {e}")
+        logger.info("[TUNNEL] Remote disconnected downstream (session=%s)", session_id)
+    except Exception as exc:
+        logger.error("[TUNNEL] Downstream error for session=%s: %s", session_id, exc)
     finally:
         client_writer.close()
         if accumulated_packets > 0 or accumulated_bytes > 0:
             try:
-                await _flush_traffic_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
+                await _flush_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
             except Exception:
                 pass
 
 
-async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+# ---------------------------------------------------------------------------
+# Main connection handler
+# ---------------------------------------------------------------------------
+
+
+async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """
-    Called automatically by asyncio for each new raw TCP connection.
-    Runs the ML-KEM handshake, derives the AES-256 key, and prepares the tunnel.
+    Handle one incoming VPN client TCP connection.
+
+    Runs the KEM handshake, reads the target destination (host:port),
+    opens a connection to that target, and bi-directionally pipes
+    encrypted traffic between the client and the remote server.
     """
     peer_addr = writer.get_extra_info("peername")
-    logger.info(f"[GATEWAY] New connection from {peer_addr}")
+    logger.info("[GATEWAY] New connection from %s", peer_addr)
 
-    db = SessionLocal()
+    remote_ip = peer_addr[0] if peer_addr else "unknown"
+    remote_port = peer_addr[1] if peer_addr else 0
+
+    session_id: str | None = None
+    remote_writer: asyncio.StreamWriter | None = None
+    db = None
+
     try:
-        # Step 1: read the client's identifier and ciphertext off the wire.
-        client_identifier_bytes = await _read_length_prefixed(reader)
-        kem_ciphertext = await _read_length_prefixed(reader)
-
+        # --- HANDSHAKE ---
+        # Read client_identifier and ciphertext off the wire
+        client_identifier_bytes = await _read_framed(reader)
+        kem_ciphertext = await _read_framed(reader)
         client_identifier = client_identifier_bytes.decode("utf-8")
-        logger.info(f"[GATEWAY] Handshake attempt from client_identifier={client_identifier}")
 
-        remote_ip, remote_port = peer_addr[0], peer_addr[1]
+        logger.info("[GATEWAY] Handshake from client_identifier=%s", client_identifier)
 
-        # Step 2: hand off to the service layer for decapsulation
-        handshake_data = await asyncio.to_thread(
-            establish_session,
+        # complete_handshake is async; pass the session_id from the client
+        # In the socket protocol the client sends session_id as the identifier
+        # so the gateway can correlate with the REST /handshake/init call.
+        # Here session_id == client_identifier (the socket client sends the
+        # session_id it received from /handshake/init as its "identifier").
+        db = SessionLocal()
+
+        handshake_data = await complete_handshake(
             db=db,
-            client_identifier=client_identifier,
+            session_id=client_identifier,  # client sends session_id as identifier
             kem_ciphertext=kem_ciphertext,
             remote_ip=remote_ip,
             remote_port=remote_port,
         )
 
         session_id = handshake_data["session_id"]
-        shared_secret = handshake_data["shared_secret"]
+        aes_key: bytes = handshake_data["aes_key"]  # in memory only
 
-        logger.info(f"[GATEWAY] Session established: {session_id}")
-        logger.info(f"[GATEWAY] 🔐 Socket holds a {len(shared_secret)}-byte shared secret in memory!")
+        logger.info("[GATEWAY] Session established: %s (AES key = %d bytes)", session_id, len(aes_key))
 
-        # --- PHASE 2: INITIALIZE THE AES CIPHER ---
-        # Derive a perfect 32-byte AES-256 key using HKDF to stretch the KEM secret safely
-        hkdf = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b"qvpn-tunnel-key",
-        )
-        aes_key = hkdf.derive(shared_secret)
-        
-        # Create the AES-GCM cipher object for this specific client connection
+        # Build the cipher once for the session lifetime
         cipher = AESGCM(aes_key)
-        logger.info("[GATEWAY] 🛡️ AES-256-GCM cipher initialized and ready for traffic!")
 
-        # Step 3: tell the client the handshake succeeded.
-        session_id_bytes = session_id.encode("utf-8")
-        writer.write(len(session_id_bytes).to_bytes(4, byteorder="big"))
-        writer.write(session_id_bytes)
+        # Tell the client the handshake succeeded
+        _write_framed(writer, session_id.encode("utf-8"))
         await writer.drain()
 
-        # --- PHASE 3: THE TRAFFIC FORWARDING LOOP ---
-        logger.info("[GATEWAY] Waiting for client to send target destination...")
-        
-        # Read the encrypted target details (host & port)
-        target_len_bytes = await reader.readexactly(4)
-        target_len = int.from_bytes(target_len_bytes, byteorder="big")
-        encrypted_target = await reader.readexactly(target_len)
-        
-        # Decrypt target details
+        # --- TRAFFIC PHASE ---
+        # Read encrypted target destination (host + port)
+        encrypted_target = await _read_framed(reader)
         target_nonce = encrypted_target[:12]
         target_ciphertext = encrypted_target[12:]
-        decrypted_target = cipher.decrypt(target_nonce, target_ciphertext, None).decode("utf-8")
-        
-        import json
-        target_data = json.loads(decrypted_target)
+        target_json = cipher.decrypt(target_nonce, target_ciphertext, None).decode("utf-8")
+        target_data = json.loads(target_json)
         target_host = target_data["host"]
-        target_port = target_data["port"]
-        logger.info(f"[GATEWAY] 🌍 Connecting to target destination: {target_host}:{target_port}...")
-        
-        # Connect to target
+        target_port = int(target_data["port"])
+
+        logger.info("[GATEWAY] Connecting to target %s:%d for session=%s", target_host, target_port, session_id)
+
         remote_reader, remote_writer = await asyncio.open_connection(target_host, target_port)
-        logger.info(f"[GATEWAY] ✅ Connected to {target_host}:{target_port}")
-        
-        # Pipe traffic bi-directionally
-        client_to_remote = asyncio.create_task(
-            pipe_client_to_remote(reader, remote_writer, cipher, session_id)
-        )
-        remote_to_client = asyncio.create_task(
-            pipe_remote_to_client(remote_reader, writer, cipher, session_id)
-        )
-        
-        await asyncio.gather(client_to_remote, remote_to_client)
-        
-    except HandshakeError as e:
-        logger.error(f"[GATEWAY] Handshake failed: {e}")
+        logger.info("[GATEWAY] Connected to %s:%d", target_host, target_port)
+
+        # Bi-directional traffic forwarding
+        upstream = asyncio.create_task(_pipe_client_to_remote(reader, remote_writer, cipher, session_id))
+        downstream = asyncio.create_task(_pipe_remote_to_client(remote_reader, writer, cipher, session_id))
+
+        await asyncio.gather(upstream, downstream)
+
+    except HandshakeError as exc:
+        logger.error("[GATEWAY] Handshake failed: %s", exc)
         try:
-            error_msg = f"Handshake failed: {e}".encode("utf-8")
-            writer.write(len(error_msg).to_bytes(4, byteorder="big"))
-            writer.write(error_msg)
+            _write_framed(writer, f"HANDSHAKE_FAILED: {exc}".encode("utf-8"))
             await writer.drain()
         except Exception:
             pass
-    except Exception as e:
-        logger.error(f"[GATEWAY] Exception in client session: {e}")
+
+    except AEADError as exc:
+        logger.error("[GATEWAY] AEAD error for session=%s: %s", session_id, exc)
+
+    except Exception as exc:
+        logger.error("[GATEWAY] Unhandled exception for session=%s: %s", session_id, exc, exc_info=True)
+
     finally:
-        logger.info(f"[GATEWAY] Cleaning up connection for session: {session_id if 'session_id' in locals() else 'unknown'}")
-        writer.close()
+        # Always close writer
         try:
+            writer.close()
             await writer.wait_closed()
         except Exception:
             pass
-            
-        if "remote_writer" in locals():
-            remote_writer.close()
+
+        if remote_writer:
             try:
+                remote_writer.close()
                 await remote_writer.wait_closed()
             except Exception:
                 pass
-                
-        if "session_id" in locals() and "db" in locals():
+
+        # Update session status in DB
+        if session_id and db:
             try:
-                from app.repositories.tunnel_state_repo import TunnelStateRepository
-                ts_repo = TunnelStateRepository()
-                ts = ts_repo.get_by_session_id(db, session_id)
-                if ts:
-                    ts_repo.update(db, ts.id, {"status": "DISCONNECTED"})
-                    logger.info(f"[GATEWAY] Tunnel state marked DISCONNECTED for session {session_id}")
-            except Exception as db_err:
-                logger.error(f"[GATEWAY] Failed to update tunnel status on disconnect: {db_err}")
-            finally:
-                db.close()
-        else:
-            if "db" in locals():
-                db.close()
+                def _close_db():
+                    close_session(db, session_id, reason="CLIENT_DISCONNECT")
+                await asyncio.to_thread(_close_db)
+            except Exception as exc:
+                logger.error("[GATEWAY] Failed to close session %s in DB: %s", session_id, exc)
+
+        if db:
+            db.close()
 
 
-async def _flush_traffic_stats(session_id: str, bytes_sent: int = 0, bytes_received: int = 0, packets_sent: int = 0, packets_received: int = 0):
-    """Flushes traffic statistics to the database in a non-blocking thread pool task."""
-    def db_update():
+# ---------------------------------------------------------------------------
+# DB helpers (run in thread pool — sync SQLAlchemy)
+# ---------------------------------------------------------------------------
+
+
+async def _flush_stats(
+    session_id: str,
+    bytes_sent: int = 0,
+    bytes_received: int = 0,
+    packets_sent: int = 0,
+    packets_received: int = 0,
+) -> None:
+    def _db_work():
         db = SessionLocal()
         try:
-            from app.repositories.traffic_stat_repo import TrafficStatRepository
-            ts_repo = TrafficStatRepository()
-            ts_repo.increment(
+            from app.services.stats_service import increment_stats
+            increment_stats(
                 db=db,
                 session_id=session_id,
                 bytes_sent=bytes_sent,
                 bytes_received=bytes_received,
                 packets_sent=packets_sent,
-                packets_received=packets_received
+                packets_received=packets_received,
             )
-        except Exception as e:
-            logger.error(f"[GATEWAY] Failed to increment traffic stats: {e}")
+        except Exception as exc:
+            logger.error("[GATEWAY] Failed to flush stats for session=%s: %s", session_id, exc)
         finally:
             db.close()
-    await asyncio.to_thread(db_update)
+
+    await asyncio.to_thread(_db_work)
 
 
-async def _record_heartbeat(session_id: str):
-    """Updates the last heartbeat timestamp for a session in the database."""
-    def db_update():
+async def _record_heartbeat(session_id: str) -> None:
+    def _db_work():
         db = SessionLocal()
         try:
             from app.repositories.tunnel_state_repo import TunnelStateRepository
             ts_repo = TunnelStateRepository()
             ts_repo.record_heartbeat(db, session_id)
-        except Exception as e:
-            logger.error(f"[GATEWAY] Failed to record heartbeat for session {session_id}: {e}")
+        except Exception as exc:
+            logger.error("[GATEWAY] Failed to record heartbeat for session=%s: %s", session_id, exc)
         finally:
             db.close()
-    await asyncio.to_thread(db_update)
+
+    await asyncio.to_thread(_db_work)
 
 
-async def monitor_tunnel_health():
-    """Background task to periodically clean up timed-out tunnels."""
-    while True:
-        try:
-            await asyncio.sleep(30)
-            logger.info("[HEALTH_CHECK] Scanning for timed-out tunnels...")
-            
-            def db_cleanup():
-                db = SessionLocal()
-                try:
-                    from app.repositories.tunnel_state_repo import TunnelStateRepository
-                    from datetime import datetime, timezone, timedelta
-                    ts_repo = TunnelStateRepository()
-                    tunnels = ts_repo.get_all(db)
-                    now = datetime.now(timezone.utc)
-                    for ts in tunnels:
-                        if ts.status == "ACTIVE" and ts.last_heartbeat:
-                            # If last heartbeat is older than 60 seconds, mark as disconnected
-                            if now - ts.last_heartbeat > timedelta(seconds=60):
-                                ts_repo.update(db, ts.id, {"status": "DISCONNECTED"})
-                                logger.info(f"[HEALTH_CHECK] Marked timed-out session {ts.session_id} as DISCONNECTED")
-                except Exception as cleanup_err:
-                    logger.error(f"[HEALTH_CHECK] Error during health cleanup: {cleanup_err}")
-                finally:
-                    db.close()
-            
-            await asyncio.to_thread(db_cleanup)
-            
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logger.error(f"[HEALTH_CHECK] Health monitor encountered error: {e}")
+# ---------------------------------------------------------------------------
+# Server startup
+# ---------------------------------------------------------------------------
 
 
 async def start_gateway_server():
-    """Starts the raw TCP socket VPN gateway listener and background health monitor."""
-    server = await asyncio.start_server(handle_client, HOST, PORT)
-    logger.info(f"[GATEWAY] Raw TCP VPN socket server started on {HOST}:{PORT}")
-    
-    # Start the background health monitor task
-    asyncio.create_task(monitor_tunnel_health())
-    
+    """
+    Start the raw TCP VPN socket server and the background session expiry task.
+
+    Returns the asyncio.Server object so the caller can manage its lifecycle.
+    """
+    server = await asyncio.start_server(handle_client, HOST, VPN_PORT)
+    logger.info("[GATEWAY] TCP VPN server listening on %s:%d", HOST, VPN_PORT)
+
+    # Start background session expiry
+    asyncio.create_task(expire_stale_sessions())
+    logger.info("[GATEWAY] Session expiry monitor started (interval=%ds)", settings.HEARTBEAT_TIMEOUT_SECONDS)
+
     return server

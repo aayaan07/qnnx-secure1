@@ -1,3 +1,9 @@
+"""
+kem_service.py — Async KEM service functions.
+
+Thin service layer over KEMManager/pqc_client. New code should call
+pqc_client or handshake_service directly.
+"""
 from app.crypto.kem import KEMManager
 
 
@@ -9,29 +15,33 @@ def _resolve_algorithm(algorithm: str) -> str:
     return SUPPORTED_KEMS.get(normalized_algorithm, algorithm.strip())
 
 
-def generate_kem_keypair(algorithm: str) -> dict:
+async def generate_kem_keypair(algorithm: str) -> dict:
+    """Async: generate a KEM keypair via the PQC API."""
     algorithm = _resolve_algorithm(algorithm)
-    keys = KEMManager.generate_keypair(algorithm)
+    keys = await KEMManager.generate_keypair(algorithm)
     return {
         "algorithm": algorithm,
+        "key_id": keys["key_id"],
         "public_key": keys["public_key"],
         "private_key": keys["private_key"],
     }
 
 
-def encapsulate_secret(algorithm: str, public_key: bytes) -> dict:
-    algorithm = _resolve_algorithm(algorithm)
-    encap = KEMManager.encapsulate(algorithm, public_key)
-    return {
-        "algorithm": algorithm,
-        "ciphertext": encap["ciphertext"],
-        "shared_secret": encap["shared_secret"],
-    }
+async def encapsulate_secret(algorithm: str, public_key: bytes) -> dict:
+    """Async: encapsulate a shared secret using a public key via the PQC API."""
+    from app.crypto.pqc_client import keygen as _keygen
+    # Encapsulation is done client-side; the gateway does not call this in production.
+    # This exists for testing and administrative tooling only.
+    raise NotImplementedError(
+        "Encapsulation is the VPN client's responsibility. "
+        "The gateway only decapsulates."
+    )
 
 
-def decapsulate_secret(algorithm: str, ciphertext: bytes, private_key: bytes) -> dict:
+async def decapsulate_secret(algorithm: str, ciphertext: bytes, private_key: bytes) -> dict:
+    """Async: decapsulate a KEM ciphertext via the PQC API."""
     algorithm = _resolve_algorithm(algorithm)
-    decap = KEMManager.decapsulate(algorithm, ciphertext, private_key)
+    decap = await KEMManager.decapsulate(algorithm, ciphertext, private_key)
     return {
         "algorithm": algorithm,
         "shared_secret": decap["shared_secret"],

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Text, Boolean, DateTime, LargeBinary
+from sqlalchemy import Column, Text, Boolean, DateTime, LargeBinary, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -7,10 +7,18 @@ from app.core.database import Base
 
 class Client(Base):
     """
-    A registered VPN client/device. Holds the client's own unique ML-KEM
-    keypair: the gateway generated this pair (via /keygen) and keeps the
-    private key here so it can later DEcapsulate ciphertexts this specific
-    client sends during a handshake.
+    A registered VPN client/device.
+
+    Key storage pattern:
+      - public_key is handed to the client during provisioning so it can
+        encapsulate (encrypt) the session shared secret.
+      - private_key is held server-side ONLY. It is never sent to the client
+        and is used only during decapsulation via the PQC API.
+      - pqc_key_id is the reference returned by the PQC service's /keygen
+        endpoint. It can be used for service-managed key storage in the future.
+
+    All three fields are populated by the /provisioning/register endpoint when
+    a new client is registered.
     """
     __tablename__ = "clients"
 
@@ -21,8 +29,14 @@ class Client(Base):
 
     kem_algorithm = Column(Text, nullable=False)  # e.g. "ML-KEM-768"
 
-    # Public key is handed out to the client; private key NEVER leaves the gateway.
+    # Reference to the keypair in the PQC service (customer_managed mode)
+    pqc_key_id = Column(Text, nullable=True)
+
+    # Public key is distributed to the client during provisioning
     public_key = Column(LargeBinary, nullable=False)
+
+    # Private key is held server-side; used only for decapsulation via PQC API
+    # Never log, serialize to JSON, or send this field to any client
     private_key = Column(LargeBinary, nullable=False)
 
     is_active = Column(Boolean, nullable=False, server_default="true")
@@ -33,3 +47,8 @@ class Client(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+
+# Indexes for fast lookups
+_idx_client_identifier = Index("ix_clients_client_identifier", Client.client_identifier)
+_idx_client_is_active = Index("ix_clients_is_active", Client.is_active)

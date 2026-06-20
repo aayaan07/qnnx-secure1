@@ -1,83 +1,105 @@
+"""
+main.py — QVPN Gateway Control Plane entry point.
+
+Starts:
+  1. FastAPI HTTP control plane (this process, port 8001 by default)
+  2. Raw TCP VPN socket server (port 5151, launched in lifespan)
+
+Routes:
+  /api/v1/handshake/*  — Two-phase KEM handshake (init + complete)
+  /api/v1/sessions/*   — Session lifecycle management
+  /api/v1/monitoring/* — System metrics and monitoring (existing)
+"""
 import logging
-import base64
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, APIRouter, HTTPException
-from pydantic import BaseModel
 
+from fastapi import FastAPI, Depends
+
+from app.core.auth import get_api_key
 from app.core.config import settings
-from app.services.kem_service import decapsulate_secret
+from app.core.exceptions import register_exception_handlers
 from app.gateway.socket_server import start_gateway_server
+from app.routes.handshake import router as handshake_router
+from app.routes.sessions import router as sessions_router
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger("qvpn.main")
 
-# In lifespan context, we start and stop the raw TCP socket VPN gateway listener
+
+# ---------------------------------------------------------------------------
+# Lifespan — start/stop the raw TCP VPN socket server
+# ---------------------------------------------------------------------------
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Launch socket server
+    logger.info("[MAIN] Starting QVPN Gateway v%s (%s)", settings.VERSION, settings.ENVIRONMENT)
+
     gateway_server = await start_gateway_server()
     app.state.gateway_server = gateway_server
+
+    logger.info("[MAIN] Gateway ready. HTTP control plane: /docs | VPN tunnel: port 5151")
     yield
-    # Shutdown: Close socket server
-    logger.info("[MAIN] Shutting down gateway server...")
+
+    # Shutdown
+    logger.info("[MAIN] Shutting down gateway...")
     gateway_server.close()
     await gateway_server.wait_closed()
-    logger.info("[MAIN] Gateway server shut down successfully.")
+    logger.info("[MAIN] Gateway stopped.")
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
 
 app = FastAPI(
-    title="QVPN-Gateway-Control-Plane",
-    version="1.0.0",
-    description="Minimal Control Plane and data plane lifecycle manager for QVPN Gateway",
-    lifespan=lifespan
+    title="QVPN Gateway Control Plane",
+    version=settings.VERSION,
+    description=settings.DESCRIPTION,
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
-# Minimal router for local KEM decapsulation endpoint
-router = APIRouter()
+# Register domain exception → HTTP response handlers
+register_exception_handlers(app)
 
-class DecapsulationRequest(BaseModel):
-    algorithm: str
-    ciphertext: str
-    private_key: str
-
-class DecapsulationResponse(BaseModel):
-    algorithm: str
-    shared_secret: str
-
-@router.post(
-    "/kem/decapsulate",
-    response_model=DecapsulationResponse,
-    summary="Minimal KEM Decapsulate",
-    description="Minimal endpoint for KEM decapsulation, bypassing guards for local testing."
+app.include_router(
+    handshake_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(get_api_key)],
 )
-def kem_decapsulate(payload: DecapsulationRequest):
-    try:
-        logger.info(f"[CONTROL_PLANE] Received decapsulation request for algorithm={payload.algorithm}")
-        # Decode base64 payloads to bytes
-        ciphertext_bytes = base64.b64decode(payload.ciphertext)
-        private_key_bytes = base64.b64decode(payload.private_key)
-        
-        # Execute decapsulation
-        result = decapsulate_secret(payload.algorithm, ciphertext_bytes, private_key_bytes)
-        
-        # Encode shared secret back to base64
-        shared_secret_b64 = base64.b64encode(result["shared_secret"]).decode("utf-8")
-        
-        return DecapsulationResponse(
-            algorithm=result["algorithm"],
-            shared_secret=shared_secret_b64
-        )
-    except Exception as exc:
-        logger.error(f"[CONTROL_PLANE] Decapsulation error: {exc}")
-        raise HTTPException(status_code=500, detail=str(exc))
+app.include_router(
+    sessions_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(get_api_key)],
+)
 
-# Include router on API v1 string
-app.include_router(router, prefix=settings.API_V1_STR, tags=["KEM"])
 
-# Include the monitoring router
-from app.routes.monitoring import router as monitoring_router
-app.include_router(monitoring_router, prefix=settings.API_V1_STR, tags=["Monitoring"])
+# ---------------------------------------------------------------------------
+# Root
+# ---------------------------------------------------------------------------
+
 
 @app.get("/", include_in_schema=False)
 def root():
-    return {"message": "Welcome to QVPN Gateway Control Plane. Visit /docs for documentation."}
+    return {
+        "service": "QVPN Gateway Control Plane",
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "docs": "/docs",
+        "vpn_tunnel_port": 5151,
+    }
+
+
+@app.get("/health", tags=["Health"])
+def health():
+    from app.gateway.session_store import session_store
+    return {
+        "status": "ok",
+        "active_sessions_in_memory": session_store.size(),
+    }
