@@ -1,0 +1,8 @@
+.oqs/
+.oqs-build/
+liboqs/
+venv/
+__pycache__/
+*.pyc
+*.env
+*.ini

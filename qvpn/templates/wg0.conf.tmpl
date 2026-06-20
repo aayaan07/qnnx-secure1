@@ -1,0 +1,13 @@
+[Interface]
+PrivateKey = YOUR_CLIENT_CLASSICAL_PRIVATE_KEY
+Address = 10.0.0.2/24
+DNS = 1.1.1.1
+# Strict clamping to prevent PQC overhead fragmentation
+MTU = 1360
+
+[Peer]
+PublicKey = YOUR_SERVER_CLASSICAL_PUBLIC_KEY
+PresharedKey = {{ PQC_SHARED_SECRET }}
+Endpoint = YOUR_SERVER_IP:51820
+# Force all third-party app traffic (Teams/Meet) through this interface
+AllowedIPs = 0.0.0.0/0
