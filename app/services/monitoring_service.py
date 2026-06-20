@@ -5,6 +5,11 @@ from app.repositories.traffic_stat_repo import TrafficStatRepository
 from app.repositories.system_metric_repo import SystemMetricRepository
 from app.repositories.security_alert_repo import SecurityAlertRepository
 from app.repositories.client_repo import ClientRepository
+from app.repositories.user_activity_repo import UserActivityRepository
+from app.repositories.network_activity_repo import NetworkActivityRepository
+from app.repositories.process_metric_repo import ProcessMetricRepository
+from app.repositories.ip_history_repo import IPHistoryRepository
+from app.repositories.vpn_event_repo import VPNEventRepository
 
 class MonitoringService:
     def __init__(self):
@@ -13,17 +18,22 @@ class MonitoringService:
         self.metrics_repo = SystemMetricRepository()
         self.alert_repo = SecurityAlertRepository()
         self.client_repo = ClientRepository()
+        self.user_act_repo = UserActivityRepository()
+        self.net_act_repo = NetworkActivityRepository()
+        self.process_repo = ProcessMetricRepository()
+        self.ip_repo = IPHistoryRepository()
+        self.vpn_evt_repo = VPNEventRepository()
 
     def get_realtime_state(self, db: DBSession) -> dict:
         """
-        Aggregates live information from all database modules and returning a
-        state summary containing tunnels, health metrics, alerts, and bandwidth stats.
+        Aggregates live information from all database modules and returns a
+        complete state summary containing active tunnels, health metrics,
+        alerts, running processes, open network sockets, and a unified Event Timeline.
         """
         # 1. Gather Tunnel States & Active Connections
         all_tunnels = self.tunnel_repo.get_all(db)
         active_tunnels = [t for t in all_tunnels if t.status == "ACTIVE"]
         
-        # Build active tunnels details list
         tunnels_detail = []
         public_ips = set()
         
@@ -61,19 +71,15 @@ class MonitoringService:
                 status_counts[t.status] += 1
 
         # 2. System Health - Aggregate Agent Metrics
-        # We find unique reporting clients and take their latest recorded metrics
         all_metrics = self.metrics_repo.get_all(db)
         latest_client_metrics = {}
         for metric in all_metrics:
             client_id = metric.client_identifier
-            # Since metrics are ordered by record time default, or we can compare,
-            # let's update if recorded_at is newer or not yet stored.
             if client_id not in latest_client_metrics:
                 latest_client_metrics[client_id] = metric
             elif metric.recorded_at > latest_client_metrics[client_id].recorded_at:
                 latest_client_metrics[client_id] = metric
 
-        # Calculate averages of unique client metrics
         num_reporting = len(latest_client_metrics)
         avg_cpu = 0.0
         avg_ram = 0.0
@@ -88,14 +94,40 @@ class MonitoringService:
             avg_ram = round(total_ram / num_reporting, 2)
             avg_disk = round(total_disk / num_reporting, 2)
 
-        # 3. Aggregated Traffic Statistics
+        # 3. Active Processes & Network Sockets
+        # Get latest active processes for all clients
+        active_processes = []
+        for client_id in latest_client_metrics.keys():
+            procs = self.process_repo.get_latest_for_client(db, client_id, limit=5)
+            for p in procs:
+                active_processes.append({
+                    "client_identifier": p.client_identifier,
+                    "pid": p.pid,
+                    "name": p.name,
+                    "cpu_percent": p.cpu_percent
+                })
+
+        # Get latest established socket connections
+        active_sockets = []
+        for client_id in latest_client_metrics.keys():
+            conns = self.net_act_repo.get_latest_for_client(db, client_id, limit=5)
+            for c in conns:
+                active_sockets.append({
+                    "client_identifier": c.client_identifier,
+                    "pid": c.pid,
+                    "local_port": c.local_port,
+                    "remote_ip": c.remote_ip,
+                    "remote_port": c.remote_port
+                })
+
+        # 4. Aggregated Traffic Statistics
         traffic_records = self.traffic_repo.get_all(db)
         total_bytes_sent = sum(tr.bytes_sent for tr in traffic_records)
         total_bytes_received = sum(tr.bytes_received for tr in traffic_records)
         total_packets_sent = sum(tr.packets_sent for tr in traffic_records)
         total_packets_received = sum(tr.packets_received for tr in traffic_records)
 
-        # 4. Unresolved Security Alerts
+        # 5. Unresolved Security Alerts
         open_alerts = self.alert_repo.get_open_alerts(db)
         alerts_list = []
         for alert in open_alerts:
@@ -107,6 +139,58 @@ class MonitoringService:
                 "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
                 "status": alert.status
             })
+
+        # 6. Unified Event Timeline (Chronological Aggregator)
+        timeline_events = []
+
+        # Ingest VPN Client events
+        vpn_events = self.vpn_evt_repo.get_all(db)
+        for ev in vpn_events:
+            timeline_events.append({
+                "timestamp": ev.recorded_at.isoformat(),
+                "event_type": "VPN_EVENT",
+                "client_identifier": ev.client_identifier,
+                "severity": "INFO" if ev.event_type == "TUNNEL_UP" else "WARNING",
+                "description": f"VPN Client state changed to {ev.event_type} (Gateway: {ev.ip_address or 'N/A'})"
+            })
+
+        # Ingest Windows User Activity events
+        user_acts = self.user_act_repo.get_all(db)
+        for act in user_acts:
+            action = "Logged In" if act.event_id == 4624 else "Logged Out"
+            timeline_events.append({
+                "timestamp": act.recorded_at.isoformat(),
+                "event_type": "USER_EVENT",
+                "client_identifier": act.client_identifier,
+                "severity": "INFO",
+                "description": f"User successfully {action} (Windows Event {act.event_id})"
+            })
+
+        # Ingest Public IP History events
+        ip_histories = self.ip_repo.get_all(db)
+        for ip_rec in ip_histories:
+            timeline_events.append({
+                "timestamp": ip_rec.recorded_at.isoformat(),
+                "event_type": "IP_EVENT",
+                "client_identifier": ip_rec.client_identifier,
+                "severity": "INFO",
+                "description": f"Public IP Address logged: {ip_rec.ip_address}"
+            })
+
+        # Ingest Security Alerts (both open and resolved)
+        all_alerts = self.alert_repo.get_all(db)
+        for alert in all_alerts:
+            timeline_events.append({
+                "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+                "event_type": "SECURITY_ALERT",
+                "client_identifier": "System",  # Aggregated alert
+                "severity": alert.severity,
+                "description": f"[{alert.status}] Threat alert: {alert.description}"
+            })
+
+        # Sort all timeline events chronologically (newest first)
+        timeline_events.sort(key=lambda x: x["timestamp"] or "", reverse=True)
+        recent_timeline = timeline_events[:20]  # limit to top 20 events
 
         # Assemble real-time snapshot
         return {
@@ -121,7 +205,10 @@ class MonitoringService:
                 "average_ram_usage_pct": avg_ram,
                 "average_disk_usage_pct": avg_disk
             },
+            "active_processes": active_processes,
+            "active_sockets": active_sockets,
             "current_alerts": alerts_list,
+            "event_timeline": recent_timeline,
             "traffic_statistics": {
                 "total_bytes_sent": total_bytes_sent,
                 "total_bytes_received": total_bytes_received,
