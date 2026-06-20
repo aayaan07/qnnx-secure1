@@ -215,7 +215,7 @@
         function toggleTunnel() {
             if (!isConnected) {
                 // Call the Python function we will expose later
-                eel.start_vpn_connection('index.html', size=(850, 600), mode='edge', port=8080); 
+                eel.start_vpn_connection()(); 
             } else {
                 eel.stop_vpn_connection()();
             }
