@@ -1,0 +1,12 @@
+# ── Third-party packages (install these) ──────────────────────────────────────
+pytest            # test runner
+pytest-asyncio    # asyncio support for pytest
+
+# ── Python stdlib used in this project (no install needed) ────────────────────
+# asyncio      — async TCP server and connection handling (server.py, handler.py)
+# logging      — structured log output (server.py, handler.py, main.py)
+# signal       — SIGINT handler to print stats on Ctrl+C (main.py)
+# subprocess   — calls networksetup to set/unset macOS system proxy (main.py)
+# socket       — IPv6 address formatting via inet_ntop (socks5.py)
+# time         — timestamps on traffic stats entries (stats.py)
+# collections  — defaultdict for per-host stats storage (stats.py)
