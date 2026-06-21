@@ -1,6 +1,7 @@
+import uuid as _uuid
 from sqlalchemy import Column, Text, Boolean, DateTime, LargeBinary, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -22,7 +23,7 @@ class Client(Base):
     """
     __tablename__ = "clients"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid.uuid4)
 
     # Human/device-supplied identifier, e.g. hostname or provisioning token
     client_identifier = Column(Text, nullable=False, unique=True)
@@ -51,4 +52,4 @@ class Client(Base):
 
 # Indexes for fast lookups
 _idx_client_identifier = Index("ix_clients_client_identifier", Client.client_identifier)
-_idx_client_is_active = Index("ix_clients_is_active", Client.is_active)
+_idx_client_is_active = Index("ix_clients_is_active", Client.is_active)

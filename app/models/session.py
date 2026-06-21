@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Text, DateTime, LargeBinary, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID
+import uuid as _uuid
+from sqlalchemy import Column, Text, DateTime, ForeignKey, Enum, LargeBinary, Index
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -26,8 +27,8 @@ class Session(Base):
     """
     __tablename__ = "sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
-
+    id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid.uuid4)
+    # Foreign key to clients
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
 
     kem_algorithm = Column(Text, nullable=False)
@@ -61,4 +62,4 @@ class Session(Base):
 _idx_session_client_id = Index("ix_sessions_client_id", Session.client_id)
 _idx_session_kem_state = Index("ix_sessions_kem_state", Session.kem_state)
 _idx_session_tunnel_status = Index("ix_sessions_tunnel_status", Session.tunnel_status)
-_idx_session_created_at = Index("ix_sessions_created_at", Session.created_at)
+_idx_session_created_at = Index("ix_sessions_created_at", Session.created_at)

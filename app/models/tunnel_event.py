@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Text, DateTime, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+import uuid as _uuid
+from sqlalchemy import Column, Text, DateTime, ForeignKey, Index, JSON
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from app.core.database import Base
 
@@ -21,18 +22,19 @@ class TunnelEvent(Base):
       "GATEWAY_TIMEOUT"      → missed heartbeat threshold exceeded
       "ERROR"                → unexpected exception in the tunnel
 
-    The `details` JSONB field holds event-specific structured data (e.g.
+    The `details` JSON field holds event-specific structured data (e.g.
     target host/port for TARGET_CONNECTED, error message for ERROR, etc.).
     """
     __tablename__ = "tunnel_events"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid.uuid4)
 
+    # The associated session
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
 
     event_type = Column(Text, nullable=False)
 
-    # Optional free-form JSON payload
+    # Optional free-form JSON payload (JSON works for both SQLite and PostgreSQL)
     details = Column(JSONB, nullable=True)
 
     occurred_at = Column(
@@ -46,3 +48,4 @@ class TunnelEvent(Base):
 _idx_event_session_id = Index("ix_tunnel_events_session_id", TunnelEvent.session_id)
 _idx_event_type = Index("ix_tunnel_events_event_type", TunnelEvent.event_type)
 _idx_event_occurred_at = Index("ix_tunnel_events_occurred_at", TunnelEvent.occurred_at)
+

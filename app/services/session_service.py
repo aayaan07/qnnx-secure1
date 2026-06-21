@@ -116,9 +116,13 @@ async def expire_stale_sessions() -> None:
                     for ts in all_tunnels:
                         if ts.status not in ("ACTIVE", "CONNECTING"):
                             continue
-                        if ts.last_heartbeat and ts.last_heartbeat < cutoff:
-                            _tunnel_state_repo.update(db, str(ts.id), {"status": "TIMED_OUT"})
-                            _session_repo.update(db, str(ts.session_id), {
+                        if ts.last_heartbeat:
+                            last_hb = ts.last_heartbeat
+                            if last_hb.tzinfo is None:
+                                last_hb = last_hb.replace(tzinfo=timezone.utc)
+                            if last_hb < cutoff:
+                                _tunnel_state_repo.update(db, str(ts.id), {"status": "TIMED_OUT"})
+                                _session_repo.update(db, str(ts.session_id), {
                                 "tunnel_status": "EXPIRED",
                                 "kem_state": "EXPIRED",
                                 "closed_at": datetime.now(timezone.utc),

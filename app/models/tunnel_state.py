@@ -1,6 +1,7 @@
+import uuid as _uuid
 from sqlalchemy import Column, Text, Integer, DateTime, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -25,8 +26,9 @@ class TunnelState(Base):
     """
     __tablename__ = "tunnel_states"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid.uuid4)
 
+    # The associated session
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, unique=True)
 
     # Status values: "CONNECTING", "ACTIVE", "DEGRADED", "DISCONNECTED", "TIMED_OUT"
@@ -48,4 +50,4 @@ class TunnelState(Base):
 # Indexes for monitoring queries
 _idx_tunnel_status = Index("ix_tunnel_states_status", TunnelState.status)
 _idx_tunnel_session_id = Index("ix_tunnel_states_session_id", TunnelState.session_id)
-_idx_tunnel_last_heartbeat = Index("ix_tunnel_states_last_heartbeat", TunnelState.last_heartbeat)
+_idx_tunnel_last_heartbeat = Index("ix_tunnel_states_last_heartbeat", TunnelState.last_heartbeat)

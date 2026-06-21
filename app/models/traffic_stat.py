@@ -1,6 +1,7 @@
+import uuid as _uuid
 from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
 
@@ -17,7 +18,7 @@ class TrafficStat(Base):
     """
     __tablename__ = "traffic_stats"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid.uuid4)
 
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
 
@@ -35,4 +36,4 @@ class TrafficStat(Base):
 
 # Indexes
 _idx_traffic_session_id = Index("ix_traffic_stats_session_id", TrafficStat.session_id)
-_idx_traffic_recorded_at = Index("ix_traffic_stats_recorded_at", TrafficStat.recorded_at)
+_idx_traffic_recorded_at = Index("ix_traffic_stats_recorded_at", TrafficStat.recorded_at)

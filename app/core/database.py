@@ -7,12 +7,21 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,   # validates connections before use — prevents stale-conn errors
-    pool_size=10,
-    max_overflow=20,
-)
+# SQLite requires check_same_thread=False for multi-threaded use (asyncio + sync SQLAlchemy).
+# PostgreSQL / other drivers use connection pooling — pool_size/max_overflow are meaningful there.
+_is_sqlite = DATABASE_URL and DATABASE_URL.startswith("sqlite")
+
+_engine_kwargs: dict = {"pool_pre_ping": True}
+
+if _is_sqlite:
+    # SQLite: disable NullPool / threading restriction; use StaticPool for testing if needed
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL / MySQL etc.: full connection pool
+    _engine_kwargs["pool_size"] = 10
+    _engine_kwargs["max_overflow"] = 20
+
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -33,3 +42,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+
