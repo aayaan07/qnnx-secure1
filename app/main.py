@@ -19,6 +19,7 @@ from app.core.auth import get_api_key
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.gateway.socket_server import start_gateway_server
+from app.routes.agent import router as agent_router
 from app.routes.handshake import router as handshake_router
 from app.routes.sessions import router as sessions_router
 
@@ -75,6 +76,11 @@ app.include_router(
 )
 app.include_router(
     sessions_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(get_api_key)],
+)
+app.include_router(
+    agent_router,
     prefix=settings.API_V1_STR,
     dependencies=[Depends(get_api_key)],
 )

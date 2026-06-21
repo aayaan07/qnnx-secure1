@@ -4,9 +4,8 @@ socket_server.py — Raw TCP VPN tunnel gateway.
 This module runs a persistent TCP socket server on VPN_PORT (default 5151).
 Each connection follows this protocol:
 
-  Wire protocol — Handshake phase:
-    CLIENT → GATEWAY:  [4-byte length][client_identifier UTF-8 bytes]
-    CLIENT → GATEWAY:  [4-byte length][kem_ciphertext bytes]
+  Wire protocol — Session resumption:
+    CLIENT → GATEWAY:  [4-byte length][session_id UTF-8 bytes]
     GATEWAY → CLIENT:  [4-byte length][session_id UTF-8 bytes]
 
   Wire protocol — Traffic phase:
@@ -34,12 +33,15 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.core.exceptions import HandshakeError, AEADError
+from app.core.exceptions import HandshakeError, AEADError, SessionNotEstablished
 from app.gateway.session_store import session_store
+from app.repositories.session_repo import SessionRepository
 from app.services.handshake_service import complete_handshake
-from app.services.session_service import close_session, expire_stale_sessions
+from app.services.session_service import close_session, expire_stale_sessions, is_session_resumable
 
 logger = logging.getLogger("qvpn.gateway")
+
+_session_repo = SessionRepository()
 
 HOST = "0.0.0.0"
 VPN_PORT = 5151  # Raw TCP VPN tunnel port — separate from the FastAPI HTTP port
@@ -176,9 +178,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     """
     Handle one incoming VPN client TCP connection.
 
-    Runs the KEM handshake, reads the target destination (host:port),
-    opens a connection to that target, and bi-directionally pipes
-    encrypted traffic between the client and the remote server.
+    Resumes an already-established session by session_id, reads the target
+    destination (host:port), opens a connection to that target, and
+    bi-directionally pipes encrypted traffic between the client and the remote server.
     """
     peer_addr = writer.get_extra_info("peername")
     logger.info("[GATEWAY] New connection from %s", peer_addr)
@@ -191,38 +193,41 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     db = None
 
     try:
-        # --- HANDSHAKE ---
-        # Read client_identifier and ciphertext off the wire
-        client_identifier_bytes = await _read_framed(reader)
-        kem_ciphertext = await _read_framed(reader)
-        client_identifier = client_identifier_bytes.decode("utf-8")
+        # --- SESSION RESUMPTION ---
+        # Read session_id off the wire
+        session_id_bytes = await _read_framed(reader)
+        session_id = session_id_bytes.decode("utf-8")
 
-        logger.info("[GATEWAY] Handshake from client_identifier=%s", client_identifier)
+        logger.info("[GATEWAY] Session resumption request for session_id=%s", session_id)
 
-        # complete_handshake is async; pass the session_id from the client
-        # In the socket protocol the client sends session_id as the identifier
-        # so the gateway can correlate with the REST /handshake/init call.
-        # Here session_id == client_identifier (the socket client sends the
-        # session_id it received from /handshake/init as its "identifier").
+        # Look up the session key in the in-memory store
+        aes_key = session_store.get(session_id)
+
+        # Query database to verify session exists and is in established state
         db = SessionLocal()
+        import uuid
+        try:
+            session_uuid = uuid.UUID(session_id)
+        except ValueError:
+            raise SessionNotEstablished(f"Invalid session UUID format: '{session_id}'")
 
-        handshake_data = await complete_handshake(
-            db=db,
-            session_id=client_identifier,  # client sends session_id as identifier
-            kem_ciphertext=kem_ciphertext,
-            remote_ip=remote_ip,
-            remote_port=remote_port,
-        )
+        session = await asyncio.to_thread(lambda: _session_repo.get_by_id(db, session_uuid))
 
-        session_id = handshake_data["session_id"]
-        aes_key: bytes = handshake_data["aes_key"]  # in memory only
+        if not aes_key or not session or not is_session_resumable(session):
+            logger.warning("[GATEWAY] Session resumption rejected: session %s not established", session_id)
+            try:
+                _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
+                await writer.drain()
+            except Exception:
+                pass
+            raise SessionNotEstablished(f"Session '{session_id}' is not in an established/active state")
 
-        logger.info("[GATEWAY] Session established: %s (AES key = %d bytes)", session_id, len(aes_key))
+        logger.info("[GATEWAY] Session resumed successfully: %s (AES key = %d bytes)", session_id, len(aes_key))
 
         # Build the cipher once for the session lifetime
         cipher = AESGCM(aes_key)
 
-        # Tell the client the handshake succeeded
+        # Tell the client the session has been resumed and is ready for the traffic phase
         _write_framed(writer, session_id.encode("utf-8"))
         await writer.drain()
 
@@ -246,6 +251,10 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         downstream = asyncio.create_task(_pipe_remote_to_client(remote_reader, writer, cipher, session_id))
 
         await asyncio.gather(upstream, downstream)
+
+    except SessionNotEstablished as exc:
+        # Logged and handled distinctly
+        logger.warning("[GATEWAY] Session resumption failed: %s", exc)
 
     except HandshakeError as exc:
         logger.error("[GATEWAY] Handshake failed: %s", exc)
@@ -275,15 +284,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 await remote_writer.wait_closed()
             except Exception:
                 pass
-
-        # Update session status in DB
-        if session_id and db:
-            try:
-                def _close_db():
-                    close_session(db, session_id, reason="CLIENT_DISCONNECT")
-                await asyncio.to_thread(_close_db)
-            except Exception as exc:
-                logger.error("[GATEWAY] Failed to close session %s in DB: %s", session_id, exc)
 
         if db:
             db.close()

@@ -1,5 +1,13 @@
+import uuid
 from sqlalchemy.orm import Session
 from app.models.traffic_stat import TrafficStat
+
+
+def _to_uuid(value) -> uuid.UUID:
+    """Coerce str/UUID → uuid.UUID for SQLite-compatible UUID column filters."""
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
 
 class TrafficStatRepository:
 
@@ -13,7 +21,7 @@ class TrafficStatRepository:
 
     def get_by_session_id(self, db: Session, session_id: str):
         return db.query(TrafficStat).filter(
-            TrafficStat.session_id == session_id
+            TrafficStat.session_id == _to_uuid(session_id)
         ).first()
 
     def create(self, db: Session, traffic_stat_data: dict):

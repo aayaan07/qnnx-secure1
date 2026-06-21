@@ -2,10 +2,11 @@
 routes/sessions.py — REST API for session lifecycle management.
 
 Endpoints:
-  GET    /api/v1/sessions                    — List sessions (filterable by status)
-  GET    /api/v1/sessions/{session_id}       — Get a single session
-  DELETE /api/v1/sessions/{session_id}       — Close a session
+  GET    /api/v1/sessions                         — List sessions (filterable by status)
+  GET    /api/v1/sessions/{session_id}            — Get a single session
+  DELETE /api/v1/sessions/{session_id}            — Close a session
   POST   /api/v1/sessions/{session_id}/heartbeat  — Record a heartbeat for a session
+  GET    /api/v1/sessions/{session_id}/heartbeats — List heartbeat log for a session
   GET    /api/v1/sessions/{session_id}/events     — List audit events for a session
   POST   /api/v1/sessions/{session_id}/events     — Append a custom event
   GET    /api/v1/sessions/{session_id}/stats      — Get traffic statistics
@@ -23,8 +24,10 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.database import get_db
 from app.core.exceptions import SessionNotFound
 from app.gateway.session_store import session_store
+from app.repositories.heartbeat_repo import HeartbeatRepository
 from app.repositories.tunnel_state_repo import TunnelStateRepository
 from app.services import event_service, session_service, stats_service
+from app.services import heartbeat_service
 
 logger = logging.getLogger("qvpn.routes.sessions")
 
@@ -94,14 +97,36 @@ class TrafficStatsOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class HeartbeatRequest(BaseModel):
+    """Optional body for heartbeat pings — carries telemetry from the client."""
+    sequence_number: int = 0
+    packets_sent: int = 0
+    packets_received: int = 0
+
+
 class HeartbeatResponse(BaseModel):
     session_id: str
     status: str
+    heartbeat_id: Optional[str] = None
+
+
+class HeartbeatOut(BaseModel):
+    """One heartbeat record from the audit log."""
+    id: str
+    session_id: str
+    timestamp: datetime
+    sequence_number: int
+    packets_sent: int
+    packets_received: int
+
+    model_config = {"from_attributes": True}
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_heartbeat_repo = HeartbeatRepository()
 
 
 def _session_or_404(db: DBSession, session_id: str):
@@ -195,15 +220,64 @@ def close_session(session_id: str, db: DBSession = Depends(get_db)):
     "/{session_id}/heartbeat",
     response_model=HeartbeatResponse,
     summary="Record a session heartbeat",
-    description="Updates the last_heartbeat timestamp and resets missed_heartbeats to 0.",
+    description=(
+        "Records a heartbeat ping: inserts a row in the heartbeats audit log, "
+        "updates tunnel_states.last_heartbeat, resets missed_heartbeats to 0, "
+        "and transitions sessions.tunnel_status to ACTIVE. "
+        "Body is optional — the client may omit it for bare pings."
+    ),
 )
-def record_heartbeat(session_id: str, db: DBSession = Depends(get_db)):
+def record_heartbeat(
+    session_id: str,
+    payload: Optional[HeartbeatRequest] = None,
+    db: DBSession = Depends(get_db),
+):
     _session_or_404(db, session_id)
     ts = _tunnel_state_repo.get_by_session_id(db, session_id)
     if not ts:
         raise HTTPException(status_code=404, detail=f"No tunnel state for session '{session_id}'")
-    _tunnel_state_repo.record_heartbeat(db, session_id)
-    return HeartbeatResponse(session_id=session_id, status="ok")
+
+    hb_kwargs = {}
+    if payload:
+        hb_kwargs = {
+            "sequence_number": payload.sequence_number,
+            "packets_sent": payload.packets_sent,
+            "packets_received": payload.packets_received,
+        }
+
+    hb = heartbeat_service.record_heartbeat(db=db, session_id=session_id, **hb_kwargs)
+    return HeartbeatResponse(
+        session_id=session_id,
+        status="ok",
+        heartbeat_id=str(hb.id),
+    )
+
+
+@router.get(
+    "/{session_id}/heartbeats",
+    response_model=List[HeartbeatOut],
+    summary="List heartbeat log for a session",
+    description="Returns the heartbeat audit log for a session, newest first.",
+)
+def list_heartbeats(
+    session_id: str,
+    since: Optional[datetime] = Query(None, description="Return heartbeats after this ISO timestamp"),
+    limit: int = Query(100, ge=1, le=1000),
+    db: DBSession = Depends(get_db),
+):
+    _session_or_404(db, session_id)
+    hbs = _heartbeat_repo.list_by_session(db, session_id, since=since, limit=limit)
+    return [
+        HeartbeatOut(
+            id=str(h.id),
+            session_id=str(h.session_id),
+            timestamp=h.timestamp,
+            sequence_number=h.sequence_number,
+            packets_sent=h.packets_sent,
+            packets_received=h.packets_received,
+        )
+        for h in hbs
+    ]
 
 
 @router.get(

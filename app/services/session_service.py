@@ -4,6 +4,7 @@ session_service.py — Session lifecycle management.
 Handles queries, status transitions, and the background expiry cleanup task.
 """
 from __future__ import annotations
+from app.core import database
 
 import asyncio
 import logging
@@ -15,7 +16,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.gateway.session_store import session_store
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, KEMState, TunnelStatus
 from app.repositories.session_repo import SessionRepository
 from app.repositories.tunnel_state_repo import TunnelStateRepository
 from app.repositories.tunnel_event_repo import TunnelEventRepository
@@ -42,6 +43,14 @@ def list_sessions(db: DBSession, tunnel_status: str | None = None) -> List[Sessi
     return _session_repo.get_all(db)
 
 
+def is_session_resumable(session: SessionModel) -> bool:
+    """Determine if a session is in a valid state to resume the VPN tunnel connection."""
+    return (
+        session.kem_state == KEMState.ESTABLISHED
+        and session.tunnel_status in (TunnelStatus.CONNECTING, TunnelStatus.ACTIVE)
+    )
+
+
 # ---------------------------------------------------------------------------
 # Lifecycle transitions
 # ---------------------------------------------------------------------------
@@ -49,7 +58,7 @@ def list_sessions(db: DBSession, tunnel_status: str | None = None) -> List[Sessi
 
 def activate_session(db: DBSession, session_id: str) -> None:
     """Called when the first data packet arrives — transitions CONNECTING → ACTIVE."""
-    _session_repo.update(db, session_id, {"tunnel_status": "ACTIVE"})
+    _session_repo.update(db, session_id, {"tunnel_status": TunnelStatus.ACTIVE})
     ts = _tunnel_state_repo.get_by_session_id(db, session_id)
     if ts:
         _tunnel_state_repo.update(db, str(ts.id), {"status": "ACTIVE"})
@@ -64,8 +73,8 @@ def close_session(db: DBSession, session_id: str, reason: str = "CLIENT_DISCONNE
     """
     now = datetime.now(timezone.utc)
     _session_repo.update(db, session_id, {
-        "tunnel_status": "CLOSED",
-        "kem_state": "CLOSED",
+        "tunnel_status": TunnelStatus.CLOSED,
+        "kem_state": KEMState.CLOSED,
         "closed_at": now,
     })
     ts = _tunnel_state_repo.get_by_session_id(db, session_id)
@@ -123,18 +132,18 @@ async def expire_stale_sessions() -> None:
                             if last_hb < cutoff:
                                 _tunnel_state_repo.update(db, str(ts.id), {"status": "TIMED_OUT"})
                                 _session_repo.update(db, str(ts.session_id), {
-                                "tunnel_status": "EXPIRED",
-                                "kem_state": "EXPIRED",
-                                "closed_at": datetime.now(timezone.utc),
-                            })
-                            session_store.evict(str(ts.session_id))
-                            _event_repo.record(
-                                db=db,
-                                session_id=str(ts.session_id),
-                                event_type="GATEWAY_TIMEOUT",
-                                details={"last_heartbeat": ts.last_heartbeat.isoformat() if ts.last_heartbeat else None},
-                            )
-                            closed_count += 1
+                                    "tunnel_status": TunnelStatus.EXPIRED,
+                                    "kem_state": KEMState.EXPIRED,
+                                    "closed_at": datetime.now(timezone.utc),
+                                })
+                                session_store.evict(str(ts.session_id))
+                                _event_repo.record(
+                                    db=db,
+                                    session_id=str(ts.session_id),
+                                    event_type="GATEWAY_TIMEOUT",
+                                    details={"last_heartbeat": ts.last_heartbeat.isoformat() if ts.last_heartbeat else None},
+                                )
+                                closed_count += 1
                     if closed_count:
                         logger.info("[SESSION] Expired %d stale session(s)", closed_count)
                 except Exception as exc:

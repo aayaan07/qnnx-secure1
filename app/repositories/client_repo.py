@@ -1,5 +1,13 @@
+import uuid
 from sqlalchemy.orm import Session
 from app.models.client import Client
+
+
+def _to_uuid(value) -> uuid.UUID:
+    """Coerce str/UUID → uuid.UUID for SQLite-compatible UUID column filters."""
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
 
 class ClientRepository:
 
@@ -8,7 +16,7 @@ class ClientRepository:
 
     def get_by_id(self, db: Session, client_id: str):
         return db.query(Client).filter(
-            Client.id == client_id
+            Client.id == _to_uuid(client_id)
         ).first()
 
     def get_by_identifier(self, db: Session, client_identifier: str):

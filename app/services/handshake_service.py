@@ -29,6 +29,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session as DBSession
+from app.models.session import KEMState, TunnelStatus
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -111,8 +112,8 @@ async def init_handshake(db: DBSession, client_identifier: str) -> dict:
             "client_id": client.id,
             "kem_algorithm": algorithm,
             "pqc_key_id": keygen_resp.key_id,
-            "kem_state": "PENDING",
-            "tunnel_status": "CONNECTING",
+            "kem_state": KEMState.PENDING,
+            "tunnel_status": TunnelStatus.CONNECTING,
         })
         # Store freshly generated public_key and key_id reference.
         # Since private key is not returned by the API, private_key is stored as empty bytes.
@@ -184,8 +185,8 @@ async def complete_handshake(
 
     if not session:
         raise SessionNotFound(f"session_id '{session_id}' not found")
-    if session.kem_state not in ("PENDING",):
-        if session.kem_state == "ESTABLISHED":
+    if session.kem_state not in (KEMState.PENDING,):
+        if session.kem_state == KEMState.ESTABLISHED:
             aes_key = session_store.get(str(session_uuid))
             if aes_key and session.kem_ciphertext == kem_ciphertext:
                 logger.info(
@@ -221,12 +222,12 @@ async def complete_handshake(
         )
     except (PQCServiceUnavailable, PQCDecapsulationError):
         def _mark_failed():
-            _session_repo.update(db, session_uuid, {"kem_state": "FAILED", "tunnel_status": "FAILED"})
+            _session_repo.update(db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
         await asyncio.to_thread(_mark_failed)
         raise
     except Exception as exc:
         def _mark_failed():
-            _session_repo.update(db, session_uuid, {"kem_state": "FAILED", "tunnel_status": "FAILED"})
+            _session_repo.update(db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
         await asyncio.to_thread(_mark_failed)
         raise HandshakeError(f"Decapsulation error: {exc}") from exc
 
@@ -243,8 +244,8 @@ async def complete_handshake(
         # Update session ciphertext + state
         _session_repo.update(db, session_uuid, {
             "kem_ciphertext": kem_ciphertext,
-            "kem_state": "ESTABLISHED",
-            "tunnel_status": "CONNECTING",
+            "kem_state": KEMState.ESTABLISHED,
+            "tunnel_status": TunnelStatus.CONNECTING,
             "established_at": now,
         })
 
@@ -252,7 +253,7 @@ async def complete_handshake(
         _tunnel_state_repo.create(db, {
             "id": uuid.uuid4(),
             "session_id": session_uuid,
-            "status": "CONNECTING",
+            "status": TunnelStatus.CONNECTING,
             "remote_ip": remote_ip,
             "remote_port": remote_port,
             "last_heartbeat": now,

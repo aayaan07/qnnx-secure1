@@ -74,6 +74,9 @@ class ApiKeyRevoked(GatewayError):
     """Raised when the API key has been revoked."""
 
 
+class SessionNotEstablished(GatewayError):
+    """Raised when a data connection tries to resume a session that is not fully established."""
+
 
 # ---------------------------------------------------------------------------
 # FastAPI exception handlers
@@ -147,4 +150,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiKeyRevoked)
     async def api_key_revoked_handler(request: Request, exc: ApiKeyRevoked):
         return _json_error("api_key_revoked", str(exc), 403)
+
+    @app.exception_handler(SessionNotEstablished)
+    async def session_not_established_handler(request: Request, exc: SessionNotEstablished):
+        return _json_error("session_not_established", str(exc), 400)
+
 

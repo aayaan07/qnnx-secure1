@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy.orm import Session as DBSession
 
 from app.models.session import Session as SessionModel
+
+
+def _to_uuid(value) -> uuid.UUID:
+    """Coerce str/UUID → uuid.UUID for SQLite-compatible UUID column filters."""
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
 
 
 class SessionRepository:
@@ -15,7 +23,7 @@ class SessionRepository:
 
     def get_by_id(self, db: DBSession, session_id: str) -> SessionModel | None:
         return db.query(SessionModel).filter(
-            SessionModel.id == session_id
+            SessionModel.id == _to_uuid(session_id)
         ).first()
 
     def list_by_status(self, db: DBSession, tunnel_status: str) -> List[SessionModel]:

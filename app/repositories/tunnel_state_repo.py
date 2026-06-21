@@ -1,6 +1,14 @@
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.tunnel_state import TunnelState
+
+
+def _to_uuid(value) -> uuid.UUID:
+    """Coerce str/UUID → uuid.UUID for SQLite-compatible UUID column filters."""
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(str(value))
 
 class TunnelStateRepository:
 
@@ -9,12 +17,12 @@ class TunnelStateRepository:
 
     def get_by_id(self, db: Session, tunnel_state_id: str):
         return db.query(TunnelState).filter(
-            TunnelState.id == tunnel_state_id
+            TunnelState.id == _to_uuid(tunnel_state_id)
         ).first()
 
     def get_by_session_id(self, db: Session, session_id: str):
         return db.query(TunnelState).filter(
-            TunnelState.session_id == session_id
+            TunnelState.session_id == _to_uuid(session_id)
         ).first()
 
     def create(self, db: Session, tunnel_state_data: dict):
@@ -41,9 +49,6 @@ class TunnelStateRepository:
         return tunnel_state
 
     def record_heartbeat(self, db: Session, session_id: str):
-        # Called every time a heartbeat packet arrives from a client.
-        # Resets missed_heartbeats and marks the tunnel ACTIVE again
-        # if it had previously been marked DEGRADED.
         tunnel_state = self.get_by_session_id(db, session_id)
 
         if not tunnel_state:

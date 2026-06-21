@@ -6,6 +6,23 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
 
+class KEMState:
+    PENDING = "PENDING"
+    ESTABLISHED = "ESTABLISHED"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CLOSED = "CLOSED"
+    FAILED = "FAILED"
+
+
+class TunnelStatus:
+    CONNECTING = "CONNECTING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CLOSED = "CLOSED"
+    FAILED = "FAILED"
+
+
 class Session(Base):
     """
     One handshake/tunnel instance for a client.
