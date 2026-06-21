@@ -23,7 +23,10 @@ HKDF_INFO = None
 
 try:
     # Try importing app.core.config by adding the gateway directory to sys.path
-    GATEWAY_DIR = os.environ.get("GATEWAY_PATH", "D:/qnnx-secure/qnnx-secure1")
+    GATEWAY_DIR = os.environ.get(
+        "GATEWAY_PATH",
+        r"C:\Users\Somil\OneDrive\Desktop\gateway"  # Local dev default
+    )
     if os.path.exists(GATEWAY_DIR) and GATEWAY_DIR not in sys.path:
         sys.path.insert(0, GATEWAY_DIR)
     
