@@ -223,6 +223,7 @@ def test_handshake_integration():
         with patch("client.pqc_client.PQCClient.encapsulate", return_value=(mock_ciphertext, mock_shared_secret)), \
              patch("httpx.AsyncClient.post", side_effect=mock_post), \
              patch("client.qvpn_client.DEBUG_MODE_PQC", False), \
+             patch("client.qvpn_client.DEBUG_AES", False), \
              patch("client.qvpn_client.eel") as mock_eel:
             
             mock_eel.trigger_heartbeat.return_value = lambda: None
@@ -257,25 +258,12 @@ def test_handshake_integration():
     asyncio.run(run())
 
 
-def test_traffic_logging():
+def test_traffic_piping():
     """
-    Verifies that all AES encrypted traffic sent to the gateway is logged to input.txt,
-    and all decrypted traffic received from the gateway is logged to output.txt.
+    Verifies that bidirectional data is transmitted correctly encrypted and decrypted
+    via the client proxy connection to the gateway.
     """
-    import os
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-    client_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    input_path = os.path.join(client_dir, "input.txt")
-    output_path = os.path.join(client_dir, "output.txt")
-
-    # Clean up existing test files
-    for p in (input_path, output_path):
-        if os.path.exists(p):
-            try:
-                os.remove(p)
-            except Exception:
-                pass
 
     class LogTestingMockGateway:
         def __init__(self, host="127.0.0.1", port=9998):
@@ -379,6 +367,7 @@ def test_traffic_logging():
         with patch("client.pqc_client.PQCClient.encapsulate", return_value=(mock_ciphertext, mock_shared_secret)), \
              patch("httpx.AsyncClient.post", side_effect=mock_post), \
              patch("client.qvpn_client.DEBUG_MODE_PQC", False), \
+             patch("client.qvpn_client.DEBUG_AES", False), \
              patch("client.qvpn_client.eel") as mock_eel:
 
             mock_eel.trigger_heartbeat.return_value = lambda: None
@@ -406,22 +395,6 @@ def test_traffic_logging():
 
         await gateway.stop()
         await client.disconnect()
-
-        # Assert that input.txt and output.txt exist and contain our data
-        assert os.path.exists(input_path), "input.txt was not created"
-        assert os.path.exists(output_path), "output.txt was not created"
-
-        with open(input_path, "rb") as f:
-            input_content = f.read()
-        with open(output_path, "rb") as f:
-            output_content = f.read()
-
-        assert b"localhost" in input_content
-        assert b"hello test log message" in input_content
-        assert b"---SEPARATOR---" in input_content
-
-        assert b"hello test log message echoed-response-data" in output_content
-        assert b"---SEPARATOR---" in output_content
 
     asyncio.run(run())
 
@@ -545,6 +518,86 @@ def test_debug_aes_mode():
 
         await gateway.stop()
         await client.disconnect()
+
+    asyncio.run(run())
+
+
+def test_debug_gateway_mode():
+    """
+    Verifies that when DEBUG_GATEWAY is True, the Local Proxy bypasses QVPNClient
+    entirely and routes traffic directly to the target internet destination.
+    """
+    import os
+    import socket
+    from unittest.mock import patch
+
+    # 1. Start a mock target internet server
+    class MockTargetServer:
+        def __init__(self, host="127.0.0.1", port=9996):
+            self.host = host
+            self.port = port
+            self.server = None
+            self.received_data = b""
+
+        async def handle_connection(self, reader, writer):
+            try:
+                # Read request (plain HTTP)
+                self.received_data = await reader.read(1024)
+                
+                # Write simple response
+                writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello Target")
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+
+        async def start(self):
+            self.server = await asyncio.start_server(self.handle_connection, self.host, self.port)
+
+        async def stop(self):
+            if self.server:
+                self.server.close()
+                await self.server.wait_closed()
+
+    async def run():
+        target = MockTargetServer(port=9996)
+        await target.start()
+
+        # 2. Start the Local Proxy with DEBUG_GATEWAY patched to True
+        from client.local_proxy import handle_client
+        proxy_server = await asyncio.start_server(handle_client, "127.0.0.1", 8083)
+
+        with patch("client.local_proxy.DEBUG_GATEWAY", True):
+            # Connect to proxy
+            p_reader, p_writer = await asyncio.open_connection("127.0.0.1", 8083)
+            
+            # Send plain HTTP request line & host header directing to our mock target server
+            req = (
+                b"GET / HTTP/1.1\r\n"
+                b"Host: 127.0.0.1:9996\r\n"
+                b"\r\n"
+            )
+            p_writer.write(req)
+            await p_writer.drain()
+
+            # Read response from proxy
+            resp = await p_reader.read(1024)
+            assert b"Hello Target" in resp
+            
+            # Assert that target server received the request directly
+            assert b"GET /" in target.received_data
+            
+            p_writer.close()
+            await p_writer.wait_closed()
+
+        proxy_server.close()
+        await proxy_server.wait_closed()
+        await target.stop()
 
     asyncio.run(run())
 

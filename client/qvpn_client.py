@@ -90,10 +90,6 @@ class QVPNClient:
         # a concurrent second call from running cleanup twice.
         self._disconnecting: bool = False
 
-        # File logging locks to prevent interleaved writes
-        self._input_file_lock = asyncio.Lock()
-        self._output_file_lock = asyncio.Lock()
-
     # -------------------------------------------------------------------------
     # Public state accessors
     # -------------------------------------------------------------------------
@@ -523,11 +519,6 @@ class QVPNClient:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             cipher = AESGCM(self._session_key)
 
-            # Define file paths in the root of the client folder
-            client_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            input_path = os.path.join(client_dir, "input.txt")
-            output_path = os.path.join(client_dir, "output.txt")
-
             target_json = json.dumps({"host": host, "port": port}).encode("utf-8")
             if DEBUG_AES:
                 target_payload = target_json
@@ -535,15 +526,6 @@ class QVPNClient:
                 target_nonce = os.urandom(12)
                 target_ciphertext = cipher.encrypt(target_nonce, target_json, None)
                 target_payload = target_nonce + target_ciphertext
-
-            # Log target request encryption to input.txt
-            target_log = target_json + b"\n" + target_payload.hex().encode("utf-8") + b"\n---SEPARATOR---\n"
-            async with self._input_file_lock:
-                try:
-                    with open(input_path, "ab") as f:
-                        f.write(target_log)
-                except Exception as e:
-                    logger.error("[conn=%s] Failed to write target data to input.txt: %s", conn_id, e)
 
             logger.debug(
                 "[conn=%s] Sending target to Gateway (%d bytes)...",
@@ -564,7 +546,7 @@ class QVPNClient:
             async def pipe_proxy_to_gateway():
                 try:
                     while True:
-                        data = await proxy_reader.read(4096)
+                        data = await proxy_reader.read(65536)
                         if not data:
                             break
                         if DEBUG_AES:
@@ -574,18 +556,9 @@ class QVPNClient:
                             ciphertext = cipher.encrypt(nonce, data, None)
                             payload = nonce + ciphertext
 
-                        # Log real data, encrypted format, and separator to input.txt
-                        log_block = data + b"\n" + payload.hex().encode("utf-8") + b"\n---SEPARATOR---\n"
-                        async with self._input_file_lock:
-                            try:
-                                with open(input_path, "ab") as f:
-                                    f.write(log_block)
-                            except Exception as e:
-                                logger.error("[conn=%s] Failed to write data to input.txt: %s", conn_id, e)
-
-                        gw_writer.write(len(payload).to_bytes(4, byteorder="big"))
-                        gw_writer.write(payload)
-                        await gw_writer.drain()
+                        gw_writer.write(len(payload).to_bytes(4, byteorder="big") + payload)
+                        if len(payload) > 262144: 
+                            await gw_writer.drain()
                         self.state.packets_sent += 1
                 except asyncio.CancelledError:
                     logger.debug("[conn=%s] proxy→gateway pipe cancelled.", conn_id)
@@ -612,15 +585,6 @@ class QVPNClient:
                             nonce = encrypted_payload[:12]
                             ciphertext = encrypted_payload[12:]
                             decrypted = cipher.decrypt(nonce, ciphertext, None)
-
-                        # Log encrypted format, decrypted data, and separator to output.txt
-                        log_block = encrypted_payload.hex().encode("utf-8") + b"\n" + decrypted + b"\n---SEPARATOR---\n"
-                        async with self._output_file_lock:
-                            try:
-                                with open(output_path, "ab") as f:
-                                    f.write(log_block)
-                            except Exception as e:
-                                logger.error("[conn=%s] Failed to write data to output.txt: %s", conn_id, e)
 
                         proxy_writer.write(decrypted)
                         await proxy_writer.drain()
