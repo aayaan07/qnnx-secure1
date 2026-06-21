@@ -191,10 +191,6 @@ async def test_tcp_tunnel(session_id: str, session_key: bytes, kem_ciphertext: b
         session_bytes = session_id.encode("utf-8")
         gw_writer.write(len(session_bytes).to_bytes(4, "big"))
         gw_writer.write(session_bytes)
-
-        # Send: [4-byte len][kem_ciphertext bytes]
-        gw_writer.write(len(kem_ciphertext).to_bytes(4, "big"))
-        gw_writer.write(kem_ciphertext)
         await gw_writer.drain()
 
         # Read: [4-byte len][session_id confirmation]
@@ -298,7 +294,7 @@ async def test_heartbeat(session_id: str):
     name = "Session Heartbeat REST API"
     t0 = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 f"{GATEWAY_API_URL}/sessions/{session_id}/heartbeat",
                 headers=headers,

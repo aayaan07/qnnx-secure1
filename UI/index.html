@@ -154,12 +154,54 @@
             50% { transform: scale(1.1); text-shadow: 0 0 15px var(--status-green); }
             100% { transform: scale(1); text-shadow: none; }
         }
+
+        .circular-btn.connecting {
+            border-color: #fbbf24;
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+            animation: connecting-glow 1.5s infinite ease-in-out;
+            cursor: wait;
+        }
+
+        .circular-btn.connecting .btn-text-status {
+            color: #fbbf24;
+        }
+
+        .circular-btn.error {
+            border-color: var(--status-red);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+        }
+
+        .circular-btn.error .btn-text-status {
+            color: var(--status-red);
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(251, 191, 36, 0.15);
+            border-top-color: #fbbf24;
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes connecting-glow {
+            0% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(251, 191, 36, 0.7); }
+            100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+        }
     </style>
 </head>
 <body>
 
     <div class="top-section">
         <div id="connectionBtn" class="circular-btn" onclick="toggleTunnel()">
+            <div id="spinner" class="spinner" style="display: none;"></div>
             <div id="btnMainText" class="btn-text-main">CONNECT</div>
             <div id="btnStatusText" class="btn-text-status">Quantum Tunnel</div>
         </div>
@@ -186,6 +228,10 @@
                     <div class="stat-title">Heartbeat</div>
                     <div class="stat-value" id="heartbeat">WAITING</div>
                 </div>
+                <div class="stat-card" id="statusCard">
+                    <div class="stat-title">Tunnel Status</div>
+                    <div class="stat-value" id="statusText" style="color: var(--text-muted);">OFFLINE</div>
+                </div>
             </div>
         </div>
     </div>
@@ -193,14 +239,17 @@
     <script>
         // DOM Elements
         const connectionBtn = document.getElementById('connectionBtn');
+        const spinner = document.getElementById('spinner');
         const btnMainText = document.getElementById('btnMainText');
         const btnStatusText = document.getElementById('btnStatusText');
         const uptimeEl = document.getElementById('uptime');
         const pktsSentEl = document.getElementById('pktsSent');
         const pktsRecvEl = document.getElementById('pktsRecv');
         const heartbeatEl = document.getElementById('heartbeat');
+        const statusCard = document.getElementById('statusCard');
+        const statusText = document.getElementById('statusText');
 
-        let isConnected = false;
+        let currentStatus = 'disconnected'; // 'disconnected', 'connecting', 'active', 'error'
         let uptimeSeconds = 0;
         let timerInterval;
 
@@ -213,8 +262,7 @@
 
         // --- STEP 1: Sending commands TO Python ---
         function toggleTunnel() {
-            if (!isConnected) {
-                // Call the Python function we will expose later
+            if (currentStatus === 'disconnected' || currentStatus === 'error') {
                 eel.start_vpn_connection()(); 
             } else {
                 eel.stop_vpn_connection()();
@@ -224,23 +272,54 @@
         // --- STEP 2: Receiving commands FROM Python ---
         // Eel allows Python to call these JavaScript functions directly
         eel.expose(update_ui_state);
-        function update_ui_state(connected_state) {
-            isConnected = connected_state;
+        function update_ui_state(state) {
+            currentStatus = state;
             
-            if (isConnected) {
+            // Clean up class lists
+            connectionBtn.classList.remove('connected', 'connecting', 'error');
+            clearInterval(timerInterval);
+            
+            if (state === 'active') {
+                spinner.style.display = 'none';
                 connectionBtn.classList.add('connected');
                 btnMainText.textContent = "SECURE";
-                btnStatusText.textContent = "Disconnecting...?";
+                btnStatusText.textContent = "Click to Disconnect";
+                
+                statusText.textContent = "ACTIVE";
+                statusText.style.color = "var(--status-green)";
+                statusCard.style.borderColor = "rgba(16, 185, 129, 0.3)";
                 
                 timerInterval = setInterval(() => {
                     uptimeSeconds++;
                     uptimeEl.innerText = formatTime(uptimeSeconds);
                 }, 1000);
-            } else {
-                connectionBtn.classList.remove('connected');
+            } else if (state === 'connecting') {
+                spinner.style.display = 'block';
+                connectionBtn.classList.add('connecting');
+                btnMainText.textContent = "CONNECTING";
+                btnStatusText.textContent = "Establishing Tunnel";
+                
+                statusText.textContent = "CONNECTING";
+                statusText.style.color = "#fbbf24";
+                statusCard.style.borderColor = "rgba(251, 191, 36, 0.3)";
+            } else if (state === 'error') {
+                spinner.style.display = 'none';
+                connectionBtn.classList.add('error');
+                btnMainText.textContent = "ERROR";
+                btnStatusText.textContent = "Reconnecting...";
+                
+                statusText.textContent = "ERROR";
+                statusText.style.color = "var(--status-red)";
+                statusCard.style.borderColor = "rgba(239, 68, 68, 0.3)";
+            } else { // 'disconnected'
+                spinner.style.display = 'none';
                 btnMainText.textContent = "CONNECT";
                 btnStatusText.textContent = "Quantum Tunnel";
-                clearInterval(timerInterval);
+                
+                statusText.textContent = "OFFLINE";
+                statusText.style.color = "var(--text-muted)";
+                statusCard.style.borderColor = "transparent";
+                
                 uptimeSeconds = 0;
                 uptimeEl.innerText = "00:00:00";
             }
@@ -263,9 +342,16 @@
             heartbeatEl.classList.add('pulse');
             
             setTimeout(() => {
-                if (isConnected) heartbeatEl.innerText = "OK";
+                if (currentStatus === 'active') heartbeatEl.innerText = "OK";
             }, 1000);
         }
+
+        // Automatically start connection on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                eel.start_vpn_connection()();
+            }, 100);
+        });
     </script>
 </body>
 </html>

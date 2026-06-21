@@ -141,11 +141,6 @@ class MockGatewayServer:
             session_len = int.from_bytes(len_bytes, byteorder="big")
             session_id = (await reader.readexactly(session_len)).decode("utf-8")
 
-            # Read length-prefixed ciphertext
-            len_bytes = await reader.readexactly(4)
-            ciphertext_len = int.from_bytes(len_bytes, byteorder="big")
-            ciphertext = await reader.readexactly(ciphertext_len)
-
             # Send session_id confirmation back
             writer.write(len(session_id).to_bytes(4, byteorder="big"))
             writer.write(session_id.encode("utf-8"))
