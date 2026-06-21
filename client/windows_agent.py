@@ -6,6 +6,7 @@ import time
 import json
 import threading
 import socket
+import urllib.parse as _urlparse
 import pythoncom
 import win32evtlog
 import pywintypes
@@ -23,6 +24,21 @@ logger = logging.getLogger("Windows_Agent")
 
 STATUS_URL = "http://127.0.0.1:8283/status"
 QUEUE_FILE = "agent_queue.json"
+
+# ---------------------------------------------------------------------------
+# Queue / upload tuneable limits
+# ---------------------------------------------------------------------------
+MAX_QUEUE_BYTES  = 15 * 1024   # 15 KB hard cap on agent_queue.json
+MAX_BATCH_BYTES  = 10 * 1024   # 10 KB max payload per HTTP POST
+MAX_BATCH_EVENTS = 50          # max events per single batch upload
+RETRY_DELAYS     = (2, 5, 10)  # exponential backoff wait times in seconds
+
+# Self-traffic exclusion — derive Gateway host / port from GATEWAY_API_URL
+# so that connections from this agent to the Gateway are never re-captured
+# as NETWORK_ACTIVITY events (prevents recursive event generation loops).
+_gw_parsed   = _urlparse.urlparse(GATEWAY_API_URL)
+GATEWAY_HOST = _gw_parsed.hostname or "localhost"
+GATEWAY_PORT = _gw_parsed.port or 8001
 
 # ---------------------------------------------------------------------------
 # Endpoint routing table
@@ -141,21 +157,68 @@ class WindowsAgent:
         self.usb_thread = None
 
     def _load_queue(self):
-        """Loads unsent events from the local queue file."""
+        """Loads unsent events from the local queue file.
+
+        If the file is corrupted (invalid JSON), it is renamed to
+        ``agent_queue.json.corrupt`` and a fresh empty queue is started so
+        that the agent can continue operating without manual intervention.
+        """
         if os.path.exists(QUEUE_FILE):
             try:
                 with open(QUEUE_FILE, "r") as f:
                     self.queue = json.load(f)
+                if not isinstance(self.queue, list):
+                    raise ValueError("Queue root is not a list")
                 logger.info(f"Loaded {len(self.queue)} unsent events from local queue.")
+            except (json.JSONDecodeError, ValueError):
+                corrupt_path = QUEUE_FILE + ".corrupt"
+                try:
+                    os.replace(QUEUE_FILE, corrupt_path)
+                    logger.warning(
+                        f"Corrupted queue file renamed to '{corrupt_path}'. "
+                        "Starting with an empty queue."
+                    )
+                except OSError as rename_err:
+                    logger.error(f"Could not rename corrupt queue: {rename_err}")
+                self.queue = []
             except Exception as e:
                 logger.error(f"Failed to load queue file: {type(e).__name__}: {e}", exc_info=True)
                 self.queue = []
 
     def _save_queue(self):
-        """Persists the current queue to the local queue file."""
+        """Persists the current in-memory queue to disk, enforcing the
+        ``MAX_QUEUE_BYTES`` (15 KB) size cap via FIFO eviction.
+
+        Must be called while ``self.queue_lock`` is held, because it mutates
+        ``self.queue`` in-place when eviction is needed.
+        """
         try:
+            # Use compact JSON (no indent) to minimise file size.
+            serialised = json.dumps(self.queue)
+            evicted = 0
+            while len(serialised.encode("utf-8")) > MAX_QUEUE_BYTES and self.queue:
+                dropped = self.queue.pop(0)   # FIFO: remove the oldest event
+                evicted += 1
+                logger.debug(
+                    f"Queue cap enforced: dropped oldest event "
+                    f"type={dropped.get('event_type')} id={dropped.get('id')}"
+                )
+                serialised = json.dumps(self.queue)
+
+            if evicted:
+                logger.warning(
+                    f"Queue exceeded {MAX_QUEUE_BYTES // 1024} KB — "
+                    f"evicted {evicted} oldest event(s) to stay within limit."
+                )
+
             with open(QUEUE_FILE, "w") as f:
-                json.dump(self.queue, f, indent=2)
+                f.write(serialised)
+
+            size_bytes = len(serialised.encode("utf-8"))
+            logger.debug(
+                f"Queue saved: {len(self.queue)} events, {size_bytes} bytes "
+                f"({size_bytes / 1024:.1f} KB)"
+            )
         except Exception as e:
             logger.error(f"Failed to save queue file: {type(e).__name__}: {e}", exc_info=True)
 
@@ -202,16 +265,153 @@ class WindowsAgent:
             pass
         return None
 
-    async def push_queued_events(self):
-        """Pushes all queued events to the backend Gateway API.
+    # -----------------------------------------------------------------------
+    # Self-traffic exclusion
+    # -----------------------------------------------------------------------
 
-        Events are grouped by type and dispatched to their dedicated endpoint in
-        one batched HTTP request per type per push cycle.  The legacy
-        /sessions/{session_id}/events path is NOT used for routine monitoring data.
+    def _is_self_traffic(self, remote_ip: str, remote_port: int) -> bool:
+        """Return True when a connection targets the Gateway API.
+
+        Such connections are produced by this agent's own HTTP uploads and
+        must not be re-captured as NETWORK_ACTIVITY events, otherwise a
+        recursive event-generation loop would form.
+        """
+        try:
+            gateway_ips = {GATEWAY_HOST, socket.gethostbyname(GATEWAY_HOST)}
+        except OSError:
+            gateway_ips = {GATEWAY_HOST}
+        return remote_ip in gateway_ips and remote_port == GATEWAY_PORT
+
+    # -----------------------------------------------------------------------
+    # Upload helpers
+    # -----------------------------------------------------------------------
+
+    def _chunked_batches(self, events: list) -> list:
+        """Split *events* into upload batches that each respect both
+        ``MAX_BATCH_BYTES`` (10 KB) and ``MAX_BATCH_EVENTS`` (50 events).
+
+        Returns a list of lists.  Each inner list is one batch ready for a
+        single HTTP POST.
+        """
+        batches: list = []
+        current: list = []
+        current_size: int = 0
+
+        for ev in events:
+            ev_size = len(json.dumps(ev).encode("utf-8"))
+            # Start a new batch if adding this event would breach either limit
+            if current and (
+                current_size + ev_size > MAX_BATCH_BYTES
+                or len(current) >= MAX_BATCH_EVENTS
+            ):
+                batches.append(current)
+                current = []
+                current_size = 0
+            current.append(ev)
+            current_size += ev_size
+
+        if current:
+            batches.append(current)
+
+        return batches
+
+    async def _post_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        body: dict,
+        headers: dict,
+    ) -> tuple:
+        """POST *body* to *url* with exponential-backoff retries.
+
+        Returns ``(success: bool, elapsed: float)``.
+        Logs payload size and event count on every timeout so that
+        oversized payloads are immediately visible in the log stream.
+        """
+        payload_bytes = len(json.dumps(body).encode("utf-8"))
+        # Heuristic event count: sum the lengths of any list values in body
+        event_count = sum(
+            len(v) for v in body.values() if isinstance(v, list)
+        )
+
+        logger.info(
+            f"Uploading → {url} | "
+            f"events={event_count} | payload={payload_bytes} bytes"
+        )
+
+        last_exc: Exception | None = None
+        all_delays = list(RETRY_DELAYS) + [None]   # None = final attempt, no sleep after
+
+        for attempt, delay in enumerate(all_delays, start=1):
+            start = time.time()
+            try:
+                resp = await client.post(url, json=body, headers=headers)
+                elapsed = time.time() - start
+                logger.info(
+                    f"Gateway responded in {elapsed:.2f}s | "
+                    f"status={resp.status_code} | url={url}"
+                )
+                return resp.status_code in (200, 201), elapsed
+
+            except httpx.TimeoutException as exc:
+                elapsed = time.time() - start
+                logger.warning(
+                    f"POST timeout after {elapsed:.2f}s "
+                    f"(attempt {attempt}/{len(all_delays)}) | "
+                    f"payload={payload_bytes} bytes | events={event_count} | "
+                    f"url={url}"
+                )
+                last_exc = exc
+
+            except Exception as exc:
+                elapsed = time.time() - start
+                logger.error(
+                    f"POST error after {elapsed:.2f}s "
+                    f"(attempt {attempt}/{len(all_delays)}): "
+                    f"{type(exc).__name__}: {exc} | url={url}"
+                )
+                last_exc = exc
+
+            if delay is not None:
+                logger.debug(f"Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+
+        logger.error(
+            f"All {len(all_delays)} upload attempt(s) failed for {url}. "
+            f"Events will be retained in queue for the next push cycle."
+        )
+        return False, 0.0
+
+    # -----------------------------------------------------------------------
+    # Main push cycle
+    # -----------------------------------------------------------------------
+
+    async def push_queued_events(self):
+        """Push queued events to the backend Gateway API.
+
+        Key design decisions
+        --------------------
+        * Events are snapshotted at the start of the cycle so that background
+          collectors can keep enqueuing without blocking.
+        * Events are grouped by endpoint, then split into ≤10 KB / ≤50-event
+          batches (``_chunked_batches``).  Each batch is uploaded individually
+          via ``_post_with_retry``.
+        * Only successfully uploaded event IDs are removed from the persistent
+          queue.  Partially-successful cycles leave the remaining events in
+          place for the next cycle.
+        * The legacy /sessions/{session_id}/events path is NOT used for
+          routine monitoring data.
         """
         with self.queue_lock:
             if not self.queue:
                 return
+            # Snapshot — so collectors can keep running while we upload
+            queue_snapshot = list(self.queue)
+
+        logger.info(
+            f"Push cycle start: {len(queue_snapshot)} event(s) in queue "
+            f"(~{os.path.getsize(QUEUE_FILE) if os.path.exists(QUEUE_FILE) else 0} bytes on disk)"
+        )
 
         # Gate: only push when the VPN tunnel is active
         session_id = await self.fetch_active_session()
@@ -219,78 +419,73 @@ class WindowsAgent:
             logger.debug("QVPN Tunnel is not active. Postponing data push.")
             return
 
-        limit = 50
-        with self.queue_lock:
-            events_to_push = self.queue[:limit]
-
-        if not events_to_push:
-            return
-
-        logger.info(f"Attempting to push {len(events_to_push)} queued event(s)...")
         headers = {
             "X-API-Key": GATEWAY_API_KEY,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-        # Group events by type so each type goes to its dedicated endpoint
-        groups: dict[str, list] = defaultdict(list)
-        unknown_ids = []
-        for ev in events_to_push:
+        # Route each event to its endpoint; drop unrecognised types immediately
+        endpoint_to_events: dict = defaultdict(list)
+        endpoint_to_builder: dict = {}
+        pushed_ids: list = []
+
+        for ev in queue_snapshot:
             etype = ev.get("event_type", "")
             if etype in _ENDPOINT_ROUTING:
-                groups[etype].append(ev)
+                path_suffix, builder = _ENDPOINT_ROUTING[etype]
+                endpoint_to_events[path_suffix].append(ev)
+                endpoint_to_builder[path_suffix] = builder
             else:
                 logger.warning(
-                    f"Event type '{etype}' (id={ev.get('id')}) has no routing entry — "
-                    "dropping from push (not sent to any endpoint)."
+                    f"Event type '{etype}' (id={ev.get('id')}) has no routing "
+                    "entry — dropping (will not be retried)."
                 )
-                unknown_ids.append(ev["id"])
+                pushed_ids.append(ev["id"])   # treat as consumed so it is removed
 
-        # Further consolidate groups that share the same endpoint path so we
-        # fire exactly one request per endpoint per push cycle
-        endpoint_to_events: dict[str, list] = defaultdict(list)
-        endpoint_to_builder: dict[str, callable] = {}
-        for etype, evs in groups.items():
-            path_suffix, builder = _ENDPOINT_ROUTING[etype]
-            endpoint_to_events[path_suffix].extend(evs)
-            endpoint_to_builder[path_suffix] = builder  # builders for same path are compatible
-
-        pushed_ids = list(unknown_ids)  # unknowns are dropped (not retried)
-
-        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
+        # Upload each endpoint's events in small, size-bounded batches
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
             for path_suffix, evs in endpoint_to_events.items():
-                builder = endpoint_to_builder[path_suffix]
-                url = f"{GATEWAY_API_URL}/{path_suffix}"
-                try:
-                    body = builder(CLIENT_IDENTIFIER, evs)
-                    resp = await client.post(url, json=body, headers=headers)
-                    if resp.status_code in (200, 201):
-                        batch_ids = [ev["id"] for ev in evs]
-                        pushed_ids.extend(batch_ids)
-                        logger.info(
-                            f"Pushed {len(evs)} event(s) → {path_suffix} "
-                            f"(HTTP {resp.status_code})"
-                        )
-                    else:
-                        logger.error(
-                            f"Gateway rejected batch for '{path_suffix}': "
-                            f"status={resp.status_code}, response={resp.text}"
-                        )
-                        # Continue trying other endpoint groups rather than aborting all
-                except Exception as e:
-                    logger.error(
-                        f"Failed to connect to Gateway for data push to '{path_suffix}': "
-                        f"{type(e).__name__}: {e}",
-                        exc_info=True,
-                    )
+                builder  = endpoint_to_builder[path_suffix]
+                url      = f"{GATEWAY_API_URL}/{path_suffix}"
+                batches  = self._chunked_batches(evs)
 
-        # Remove successfully pushed (and dropped unknown) events from queue
+                logger.info(
+                    f"{path_suffix}: {len(evs)} event(s) → "
+                    f"{len(batches)} batch(es)"
+                )
+
+                for batch_num, batch in enumerate(batches, start=1):
+                    body = builder(CLIENT_IDENTIFIER, batch)
+                    ok, _elapsed = await self._post_with_retry(
+                        client, url, body, headers
+                    )
+                    if ok:
+                        pushed_ids.extend(ev["id"] for ev in batch)
+                    else:
+                        logger.warning(
+                            f"{path_suffix} batch {batch_num}/{len(batches)} "
+                            f"failed — {len(batch)} event(s) kept in queue."
+                        )
+
+        # Persist: remove only the successfully uploaded / dropped events
         if pushed_ids:
             with self.queue_lock:
                 pushed_set = set(pushed_ids)
-                self.queue = [ev for ev in self.queue if ev["id"] not in pushed_set]
-                self._save_queue()
-            logger.info(f"Cleared {len(pushed_ids)} event(s) from local queue.")
+                before = len(self.queue)
+                self.queue = [
+                    ev for ev in self.queue if ev["id"] not in pushed_set
+                ]
+                self._save_queue()   # also enforces 15 KB cap
+                after = len(self.queue)
+
+            disk_bytes = (
+                os.path.getsize(QUEUE_FILE) if os.path.exists(QUEUE_FILE) else 0
+            )
+            logger.info(
+                f"Push cycle done: removed {before - after} event(s). "
+                f"Queue remaining: {after} events, {disk_bytes} bytes "
+                f"({disk_bytes / 1024:.1f} KB on disk)"
+            )
 
     def poll_system_metrics(self):
         """Collects CPU, RAM, and disk utilization metrics."""
@@ -308,12 +503,20 @@ class WindowsAgent:
         self.enqueue_event("SYSTEM_METRICS", details)
 
     def poll_network_connections(self):
-        """Enumerates active TCP connections and enqueues network activities."""
+        """Enumerates active TCP connections and enqueues network activities.
+
+        Connections destined for the Gateway API are silently skipped via
+        ``_is_self_traffic`` to prevent the agent's own upload traffic from
+        being recursively re-captured as telemetry events.
+        """
         try:
             conns = psutil.net_connections(kind="inet")
             events_to_enqueue = []
             for conn in conns:
                 if conn.status == "ESTABLISHED" and conn.raddr:
+                    # Skip connections that are part of our own Gateway uploads
+                    if self._is_self_traffic(conn.raddr.ip, conn.raddr.port):
+                        continue
                     details = {
                         "client_identifier": CLIENT_IDENTIFIER,
                         "pid": conn.pid or 0,
@@ -326,7 +529,11 @@ class WindowsAgent:
             if events_to_enqueue:
                 self.enqueue_events_batch(events_to_enqueue)
         except Exception as e:
-            logger.error(f"Failed to enumerate network connections: {type(e).__name__}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to enumerate network connections: "
+                f"{type(e).__name__}: {e}",
+                exc_info=True,
+            )
 
     async def poll_public_ip(self):
         """Checks for changes in the public IP address."""
