@@ -1,0 +1,1514 @@
+[
+  {
+    "id": "1165307e-787d-427d-896a-11cc674372ee",
+    "event_type": "SYSTEM_METRICS",
+    "details": {
+      "client_identifier": "test-client-1",
+      "cpu_usage": 34.7,
+      "ram_usage": 63.2,
+      "disk_usage": 16.3,
+      "recorded_at": "2026-06-21T05:47:49.639878+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.641351+00:00"
+  },
+  {
+    "id": "fa97532b-720c-4c81-ac9d-90f0c72a1ed0",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 57927,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.643281+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.643299+00:00"
+  },
+  {
+    "id": "1f9709b1-c77f-43a1-a794-16a74b3e4447",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53934,
+      "remote_ip": "34.54.84.110",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.643985+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.643999+00:00"
+  },
+  {
+    "id": "476c9e64-c244-4e3e-8ac3-c712d1dc63a4",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53951,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53953,
+      "recorded_at": "2026-06-21T05:47:49.644464+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.644476+00:00"
+  },
+  {
+    "id": "c2852997-a58e-4981-b2eb-1ab22ef97520",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 58016,
+      "remote_ip": "192.178.158.94",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.644770+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.644783+00:00"
+  },
+  {
+    "id": "ff66e2f9-8525-4122-aec6-36119f618eb5",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 65066,
+      "remote_ip": "192.178.158.188",
+      "remote_port": 5228,
+      "recorded_at": "2026-06-21T05:47:49.645147+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.645161+00:00"
+  },
+  {
+    "id": "52d14651-1868-41b0-b11d-7db9986b52f6",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23008,
+      "local_port": 55896,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.645527+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.645539+00:00"
+  },
+  {
+    "id": "9a117357-c5b4-41f0-bd7e-d7e504073e0e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4824,
+      "local_port": 62406,
+      "remote_ip": "52.123.253.131",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.645960+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.645970+00:00"
+  },
+  {
+    "id": "a77a7655-30be-4097-863f-a687925b6140",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 49388,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62191,
+      "recorded_at": "2026-06-21T05:47:49.646302+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.646312+00:00"
+  },
+  {
+    "id": "ee73f2bb-1c07-4225-bc9e-0981d847b29c",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 30264,
+      "local_port": 50605,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 50606,
+      "recorded_at": "2026-06-21T05:47:49.646696+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.646706+00:00"
+  },
+  {
+    "id": "b896970c-acaa-491d-a949-5f74a118d47e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10004,
+      "local_port": 56240,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 56239,
+      "recorded_at": "2026-06-21T05:47:49.647122+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.647136+00:00"
+  },
+  {
+    "id": "7ef6d474-54d6-4a6f-9b7c-a000f5cf436d",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62395,
+      "recorded_at": "2026-06-21T05:47:49.647555+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.647567+00:00"
+  },
+  {
+    "id": "6b626374-7cc8-4101-a526-e40027a976e0",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53937,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 61386,
+      "recorded_at": "2026-06-21T05:47:49.647999+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.648010+00:00"
+  },
+  {
+    "id": "570b1c43-3a6b-4179-bf8c-48cdeb9ddb7c",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 55896,
+      "recorded_at": "2026-06-21T05:47:49.648436+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.648446+00:00"
+  },
+  {
+    "id": "e1f293e6-1538-4df7-a2d1-a37dad11b180",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 55436,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.648972+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.648982+00:00"
+  },
+  {
+    "id": "4f8e85ce-4b28-4e7e-9484-7111bd197286",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 49558,
+      "remote_ip": "192.178.158.84",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.649639+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.649652+00:00"
+  },
+  {
+    "id": "b05eff0e-3a3d-4184-ae9d-4abe561e07a2",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 61386,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53940,
+      "recorded_at": "2026-06-21T05:47:49.650246+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.650258+00:00"
+  },
+  {
+    "id": "9d5eb603-be09-4d92-bd6f-da9bc67becf2",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 16072,
+      "local_port": 54422,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 54423,
+      "recorded_at": "2026-06-21T05:47:49.651025+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.651039+00:00"
+  },
+  {
+    "id": "21142920-b5ce-441c-b670-c780a46030d0",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58856,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49387,
+      "recorded_at": "2026-06-21T05:47:49.651624+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.651636+00:00"
+  },
+  {
+    "id": "46fc6f41-77f1-48af-94d4-c1ccd8b08978",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4868,
+      "local_port": 49712,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49711,
+      "recorded_at": "2026-06-21T05:47:49.652542+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.652555+00:00"
+  },
+  {
+    "id": "0ef275f6-8a10-4efd-8938-a829e7ee925f",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23008,
+      "local_port": 60510,
+      "remote_ip": "151.101.129.242",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.653213+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.653226+00:00"
+  },
+  {
+    "id": "e6326d1d-9acf-4733-bbe0-4c625bd5d414",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 64482,
+      "remote_ip": "142.250.182.138",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.653933+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.653945+00:00"
+  },
+  {
+    "id": "2e99f08c-dc14-4fd3-8c3c-f376e1df0993",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 53953,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53951,
+      "recorded_at": "2026-06-21T05:47:49.654592+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.654603+00:00"
+  },
+  {
+    "id": "902de467-da1c-4a15-beed-167595ab29ab",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62393,
+      "recorded_at": "2026-06-21T05:47:49.655265+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.655277+00:00"
+  },
+  {
+    "id": "c4c4e63f-5246-4ffd-8b3e-18566f57f093",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 57757,
+      "recorded_at": "2026-06-21T05:47:49.656054+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.656066+00:00"
+  },
+  {
+    "id": "7489058a-d469-4397-9682-6539c5ea9965",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 64723,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 8080,
+      "recorded_at": "2026-06-21T05:47:49.656863+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.656876+00:00"
+  },
+  {
+    "id": "9728ce36-21db-4867-8af7-0ea1b1fb731a",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 3064,
+      "local_port": 49685,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49686,
+      "recorded_at": "2026-06-21T05:47:49.657748+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.657762+00:00"
+  },
+  {
+    "id": "c2a36e98-562a-41c7-821a-3b04c3fd409f",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 58012,
+      "remote_ip": "142.250.195.78",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.658593+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.658607+00:00"
+  },
+  {
+    "id": "ef2477a5-c5ba-4d29-afd4-0dd378900bfe",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 57926,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.659403+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.659416+00:00"
+  },
+  {
+    "id": "c88befe7-0bbd-4ae1-b791-9c0545ef6e70",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58851,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49387,
+      "recorded_at": "2026-06-21T05:47:49.660298+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.660312+00:00"
+  },
+  {
+    "id": "e808c4e0-12f0-4ecd-88e5-457611f08e39",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23008,
+      "local_port": 62891,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.661245+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.661257+00:00"
+  },
+  {
+    "id": "8932a8a4-05a9-473b-9b74-c90f19d2449d",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 9496,
+      "local_port": 49684,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49683,
+      "recorded_at": "2026-06-21T05:47:49.662049+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.662061+00:00"
+  },
+  {
+    "id": "6c75f514-66cc-42f0-a571-6d4b11b4eaa3",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 55435,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.662803+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.662814+00:00"
+  },
+  {
+    "id": "ae9ed189-7180-4022-9a4b-d18362058ef3",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 61386,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53937,
+      "recorded_at": "2026-06-21T05:47:49.663599+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.663609+00:00"
+  },
+  {
+    "id": "0952ac4c-bacc-4e93-b50c-cb79e7dd98ba",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53932,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53954,
+      "recorded_at": "2026-06-21T05:47:49.664426+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.664438+00:00"
+  },
+  {
+    "id": "abbbb963-fa88-4bf0-a93a-c368fe9e1251",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58859,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.665308+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.665320+00:00"
+  },
+  {
+    "id": "948ff29d-478b-4502-a895-6b12b1f3c972",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53941,
+      "remote_ip": "216.239.34.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.666247+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.666261+00:00"
+  },
+  {
+    "id": "ee9d83a3-a32d-4d8e-8368-e3d8e64c3813",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53943,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 61386,
+      "recorded_at": "2026-06-21T05:47:49.667160+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.667173+00:00"
+  },
+  {
+    "id": "fd710d88-307d-4fda-853d-d111c3ab9fb8",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 53955,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.668033+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.668043+00:00"
+  },
+  {
+    "id": "0513f9dd-7006-4df7-ac83-b6f3f4e5560b",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 57926,
+      "recorded_at": "2026-06-21T05:47:49.668941+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.668951+00:00"
+  },
+  {
+    "id": "e731f683-ea40-487f-a36f-9f2215333a1d",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62395,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.669872+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.669883+00:00"
+  },
+  {
+    "id": "b55fb508-f593-4807-a45c-56bc44023388",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 16072,
+      "local_port": 8001,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 52093,
+      "recorded_at": "2026-06-21T05:47:49.670813+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.670824+00:00"
+  },
+  {
+    "id": "564ff0a9-a7bc-4921-8b85-84a19a7aefa9",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62389,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.671837+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.671852+00:00"
+  },
+  {
+    "id": "f34edd26-0f69-4845-b68f-cf2eed859dbb",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 55043,
+      "remote_ip": "50.118.166.219",
+      "remote_port": 80,
+      "recorded_at": "2026-06-21T05:47:49.673202+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.673220+00:00"
+  },
+  {
+    "id": "06ee293e-0780-4a12-83b3-bb9eb172b5d0",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 55738,
+      "remote_ip": "163.70.145.60",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.674295+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.674307+00:00"
+  },
+  {
+    "id": "dcb51ed3-4e6d-482e-b966-5dab3b5bdbb7",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4868,
+      "local_port": 49711,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49712,
+      "recorded_at": "2026-06-21T05:47:49.675311+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.675322+00:00"
+  },
+  {
+    "id": "307d0b8e-573c-4afb-a91c-fb7cec4f95c7",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 21520,
+      "local_port": 51188,
+      "remote_ip": "162.159.133.234",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.676281+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.676293+00:00"
+  },
+  {
+    "id": "98846ae2-1ccb-46e0-9724-e60944f81a3a",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23008,
+      "local_port": 50060,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.677275+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.677285+00:00"
+  },
+  {
+    "id": "64e2e8e0-a971-4960-b648-68e936f24e82",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 3064,
+      "local_port": 49686,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49685,
+      "recorded_at": "2026-06-21T05:47:49.678310+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.678323+00:00"
+  },
+  {
+    "id": "9c34f319-0eda-4494-b9e8-c546ea37ca3b",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 16072,
+      "local_port": 54423,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 54422,
+      "recorded_at": "2026-06-21T05:47:49.679562+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.679577+00:00"
+  },
+  {
+    "id": "ef19b278-83e9-425e-94fe-f1be46facbb3",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58839,
+      "remote_ip": "34.54.84.110",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.680671+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.680683+00:00"
+  },
+  {
+    "id": "a42d3e3a-9944-4ae1-92e1-b72b556b727c",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58855,
+      "remote_ip": "192.178.158.95",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.681825+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.681836+00:00"
+  },
+  {
+    "id": "e2037c5d-592a-4e11-845d-6ec48a4eedbd",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 58832,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.682903+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.682914+00:00"
+  },
+  {
+    "id": "d3393a12-6c3c-4bff-97e4-2ae994d48ff5",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 16072,
+      "local_port": 60954,
+      "remote_ip": "13.114.6.6",
+      "remote_port": 6543,
+      "recorded_at": "2026-06-21T05:47:49.683953+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.683964+00:00"
+  },
+  {
+    "id": "b9fefd58-7e6b-4756-88a3-d58d0388a3f1",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 30264,
+      "local_port": 50606,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 50605,
+      "recorded_at": "2026-06-21T05:47:49.685040+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.685050+00:00"
+  },
+  {
+    "id": "ed189033-e31b-49e5-89b6-2580c2cb2922",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10176,
+      "local_port": 61224,
+      "remote_ip": "40.104.66.162",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.686373+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.686393+00:00"
+  },
+  {
+    "id": "7042d03b-f52f-4208-bc80-9a925baec904",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 60955,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.687601+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.687619+00:00"
+  },
+  {
+    "id": "54871ff6-a19f-41df-8a69-93f9c028fbcd",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 58979,
+      "remote_ip": "74.125.130.188",
+      "remote_port": 5228,
+      "recorded_at": "2026-06-21T05:47:49.688836+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.688850+00:00"
+  },
+  {
+    "id": "2dd5ab81-3201-4928-9439-b58b49b28ab1",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62390,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.690032+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.690043+00:00"
+  },
+  {
+    "id": "54fa6b5e-9c41-4af4-8b1e-1e36b877cd43",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 64740,
+      "remote_ip": "160.79.104.10",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.691170+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.691181+00:00"
+  },
+  {
+    "id": "4a3f5648-50ec-4eb9-b562-097d7c483529",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 49408,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62190,
+      "recorded_at": "2026-06-21T05:47:49.692418+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.692431+00:00"
+  },
+  {
+    "id": "52644f95-bc71-46d3-b105-825232b54b04",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 30672,
+      "local_port": 53946,
+      "remote_ip": "104.16.5.34",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.693826+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.693846+00:00"
+  },
+  {
+    "id": "9287f0b1-194d-4e43-8097-7eed2ee0c7b7",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 61386,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53936,
+      "recorded_at": "2026-06-21T05:47:49.695237+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.695253+00:00"
+  },
+  {
+    "id": "ce97cb79-51a9-49f0-b7a1-5a38995ecd1b",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 53954,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53932,
+      "recorded_at": "2026-06-21T05:47:49.696546+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.696559+00:00"
+  },
+  {
+    "id": "ee5e20d9-2260-49da-bbcf-b2059c051766",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 55805,
+      "remote_ip": "160.79.104.10",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.697823+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.697834+00:00"
+  },
+  {
+    "id": "41c22ce3-fed1-45d9-bb87-b130b12a5561",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 5772,
+      "local_port": 61386,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53943,
+      "recorded_at": "2026-06-21T05:47:49.699111+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.699123+00:00"
+  },
+  {
+    "id": "9a6e035a-d53c-4c4e-bfe4-62e64486e0fd",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 9496,
+      "local_port": 49683,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49684,
+      "recorded_at": "2026-06-21T05:47:49.700601+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.700622+00:00"
+  },
+  {
+    "id": "530ae902-3d8b-4634-a456-9e93586afad2",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 53955,
+      "recorded_at": "2026-06-21T05:47:49.702043+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.702063+00:00"
+  },
+  {
+    "id": "c1769378-d172-4707-a160-4838924a1233",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58854,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49387,
+      "recorded_at": "2026-06-21T05:47:49.703480+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.703492+00:00"
+  },
+  {
+    "id": "f0974c9e-4389-4363-9cf9-b6de52b07622",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 50060,
+      "recorded_at": "2026-06-21T05:47:49.704843+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.704854+00:00"
+  },
+  {
+    "id": "807f0964-99ba-4d81-94c5-82c329d0f616",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 58850,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49387,
+      "recorded_at": "2026-06-21T05:47:49.706178+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.706189+00:00"
+  },
+  {
+    "id": "19886f06-f55a-4558-8973-3c8a98b49f2a",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 57074,
+      "remote_ip": "192.178.158.188",
+      "remote_port": 5228,
+      "recorded_at": "2026-06-21T05:47:49.709837+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.709855+00:00"
+  },
+  {
+    "id": "8de6a8e7-8bff-4a35-b606-95cc5b2370e1",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 62190,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49408,
+      "recorded_at": "2026-06-21T05:47:49.711287+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.711301+00:00"
+  },
+  {
+    "id": "744535aa-b71d-41c7-8f8a-6b7e0988eb29",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 1964,
+      "local_port": 49681,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49682,
+      "recorded_at": "2026-06-21T05:47:49.712694+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.712706+00:00"
+  },
+  {
+    "id": "84a40ec8-7615-4835-a3c5-344ac3642f2a",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 21520,
+      "local_port": 53924,
+      "remote_ip": "172.64.155.209",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.714284+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.714303+00:00"
+  },
+  {
+    "id": "f27dc314-09ce-4166-9a3b-72f6b8f27dfe",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10176,
+      "local_port": 61226,
+      "remote_ip": "40.104.66.162",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.715852+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.715867+00:00"
+  },
+  {
+    "id": "94b6ab88-8458-48f6-8034-31f4c662d32e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62393,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.717349+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.717361+00:00"
+  },
+  {
+    "id": "16e7ab40-b03a-4cf1-a24d-3d409aa07fd4",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62389,
+      "recorded_at": "2026-06-21T05:47:49.718832+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.718843+00:00"
+  },
+  {
+    "id": "d64359b3-f568-41de-8604-b9af1bfec992",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 30264,
+      "local_port": 8080,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 64723,
+      "recorded_at": "2026-06-21T05:47:49.720379+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.720406+00:00"
+  },
+  {
+    "id": "dae74c2f-3624-4a73-9232-514f9b3f6783",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 64197,
+      "remote_ip": "142.250.146.101",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.722249+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.722267+00:00"
+  },
+  {
+    "id": "bbae6993-1ff3-4763-b75c-538b513d4e4c",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 62191,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49388,
+      "recorded_at": "2026-06-21T05:47:49.723810+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.723824+00:00"
+  },
+  {
+    "id": "692530b2-e491-4190-9b81-27bc0fb8ab04",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 1964,
+      "local_port": 49682,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 49681,
+      "recorded_at": "2026-06-21T05:47:49.725337+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.725348+00:00"
+  },
+  {
+    "id": "1de5dc8b-38fc-4b10-b416-1f8d7a3b9e3c",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 59442,
+      "remote_ip": "216.239.34.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.726899+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.726914+00:00"
+  },
+  {
+    "id": "59f9ca78-8c08-4549-9aed-c7e9dfa78331",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 49387,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58850,
+      "recorded_at": "2026-06-21T05:47:49.728755+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.728775+00:00"
+  },
+  {
+    "id": "44e857a1-3ee0-40b0-91f7-2e1f68a1f442",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62390,
+      "recorded_at": "2026-06-21T05:47:49.730472+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.730486+00:00"
+  },
+  {
+    "id": "bb93fc23-7555-408b-a939-2ae521df9654",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10176,
+      "local_port": 61225,
+      "remote_ip": "40.104.66.162",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.732066+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.732078+00:00"
+  },
+  {
+    "id": "121080f1-5fde-49c9-9aa8-4886da7eefc8",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53936,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 61386,
+      "recorded_at": "2026-06-21T05:47:49.733647+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.733657+00:00"
+  },
+  {
+    "id": "baed94e7-c5c8-42d2-ae8d-716fe93e97d5",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 21520,
+      "local_port": 55434,
+      "remote_ip": "104.18.39.21",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.735593+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.735615+00:00"
+  },
+  {
+    "id": "a07a38a0-ca23-4326-8b15-26d4bbd1e3ce",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 19280,
+      "local_port": 65426,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.737304+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.737318+00:00"
+  },
+  {
+    "id": "e89a92e9-0aa5-468b-94d1-4c37a07e01e6",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 49387,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58854,
+      "recorded_at": "2026-06-21T05:47:49.738966+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.738977+00:00"
+  },
+  {
+    "id": "5cf95a77-4170-4e94-ac1c-99b5e55313e7",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 56186,
+      "remote_ip": "34.54.84.110",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.740632+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.740642+00:00"
+  },
+  {
+    "id": "e730454b-f9f7-49c1-bd2d-f1dc05f98867",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4516,
+      "local_port": 64725,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 64726,
+      "recorded_at": "2026-06-21T05:47:49.742519+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.742538+00:00"
+  },
+  {
+    "id": "6a7bd008-36f7-4ee9-832c-be43464846f6",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10004,
+      "local_port": 56239,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 56240,
+      "recorded_at": "2026-06-21T05:47:49.744518+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.744533+00:00"
+  },
+  {
+    "id": "bfec0233-26ac-4595-8af3-90722d1e6e18",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10176,
+      "local_port": 61227,
+      "remote_ip": "40.104.66.162",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.746309+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.746320+00:00"
+  },
+  {
+    "id": "a69fc4d6-e198-47e9-a76c-423597549df4",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58756,
+      "recorded_at": "2026-06-21T05:47:49.748123+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.748137+00:00"
+  },
+  {
+    "id": "181df84a-5437-4d08-8800-b28313f95016",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4724,
+      "local_port": 54472,
+      "remote_ip": "4.213.25.240",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.750025+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.750043+00:00"
+  },
+  {
+    "id": "c6b36c6f-2fa3-4ea4-8d66-8f6b68fbaaba",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 57757,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62379,
+      "recorded_at": "2026-06-21T05:47:49.751875+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.751890+00:00"
+  },
+  {
+    "id": "9282ab36-d5a5-4e7d-bbf9-337befc72fe9",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 21520,
+      "local_port": 61333,
+      "remote_ip": "172.64.148.235",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.753684+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.753696+00:00"
+  },
+  {
+    "id": "4310e5bd-e98b-42ef-9c0c-a30c047e277e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 58756,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62382,
+      "recorded_at": "2026-06-21T05:47:49.755585+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.755601+00:00"
+  },
+  {
+    "id": "3c4b5b4e-4bd0-4c43-b260-646411e62b3f",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 10004,
+      "local_port": 52093,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 8001,
+      "recorded_at": "2026-06-21T05:47:49.757612+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.757629+00:00"
+  },
+  {
+    "id": "2ebd3b0b-7657-4b59-a9d0-00d96594e56e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 53268,
+      "remote_ip": "160.79.104.10",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.759476+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.759488+00:00"
+  },
+  {
+    "id": "029126b4-949d-4731-8f73-632c3b1ba23d",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 22640,
+      "local_port": 62379,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 57927,
+      "recorded_at": "2026-06-21T05:47:49.761282+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.761292+00:00"
+  },
+  {
+    "id": "d3cbec5a-6b27-40be-b805-9ef92fe68ee4",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 49387,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58856,
+      "recorded_at": "2026-06-21T05:47:49.763416+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.763439+00:00"
+  },
+  {
+    "id": "4caf1605-b4ec-455f-b405-aa517ab74610",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 57498,
+      "remote_ip": "216.239.32.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.765396+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.765422+00:00"
+  },
+  {
+    "id": "7547bb9b-dc35-41fe-9871-0e372a70a94b",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 62891,
+      "recorded_at": "2026-06-21T05:47:49.767372+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.767392+00:00"
+  },
+  {
+    "id": "a673a8b3-b219-49ac-a15a-5959430b7f3a",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 6780,
+      "local_port": 64304,
+      "remote_ip": "192.178.158.188",
+      "remote_port": 5228,
+      "recorded_at": "2026-06-21T05:47:49.769502+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.769521+00:00"
+  },
+  {
+    "id": "2c172930-4239-4d0e-864b-7282880ecff3",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 57493,
+      "remote_ip": "216.239.38.223",
+      "remote_port": 443,
+      "recorded_at": "2026-06-21T05:47:49.771662+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.771681+00:00"
+  },
+  {
+    "id": "22180bd2-2a1f-4db7-84af-71d74bb66a6e",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 4516,
+      "local_port": 64726,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 64725,
+      "recorded_at": "2026-06-21T05:47:49.773702+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.773716+00:00"
+  },
+  {
+    "id": "972eeba0-bfcd-4321-992a-f1289b1fe459",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 27296,
+      "local_port": 49387,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58851,
+      "recorded_at": "2026-06-21T05:47:49.775645+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.775657+00:00"
+  },
+  {
+    "id": "39df4b0b-a5f1-40b5-a67b-8c45629bccf8",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 29980,
+      "local_port": 53940,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 61386,
+      "recorded_at": "2026-06-21T05:47:49.777713+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.777729+00:00"
+  },
+  {
+    "id": "6cafbe8a-bf23-4b3a-9e2c-1d4e37cf9314",
+    "event_type": "NETWORK_ACTIVITY",
+    "details": {
+      "client_identifier": "test-client-1",
+      "pid": 23364,
+      "local_port": 62382,
+      "remote_ip": "127.0.0.1",
+      "remote_port": 58832,
+      "recorded_at": "2026-06-21T05:47:49.779735+00:00"
+    },
+    "timestamp": "2026-06-21T05:47:49.779746+00:00"
+  },
+  {
+    "id": "ea808800-933c-44d7-8e73-dfde60d518cf",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "conhost.exe",
+      "pid": 23872
+    },
+    "timestamp": "2026-06-21T05:47:51.043778+00:00"
+  },
+  {
+    "id": "18558816-48d8-4e09-996b-ce2e132ef0d6",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "git.exe",
+      "pid": 24000
+    },
+    "timestamp": "2026-06-21T05:47:51.051773+00:00"
+  },
+  {
+    "id": "456b6238-9ff8-4717-9787-aeb59facf050",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "git.exe",
+      "pid": 24140
+    },
+    "timestamp": "2026-06-21T05:47:51.060434+00:00"
+  },
+  {
+    "id": "885975da-752d-4db9-aa9d-008d3f9a8d27",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "conhost.exe",
+      "pid": 24640
+    },
+    "timestamp": "2026-06-21T05:47:51.067951+00:00"
+  },
+  {
+    "id": "b29797be-7087-4baf-ad2e-c476f0a2594d",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "git.exe",
+      "pid": 26344
+    },
+    "timestamp": "2026-06-21T05:47:51.078228+00:00"
+  },
+  {
+    "id": "d3284f1f-c779-49e3-af8c-709fe76a6049",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "git.exe",
+      "pid": 28900
+    },
+    "timestamp": "2026-06-21T05:47:51.085840+00:00"
+  },
+  {
+    "id": "fcf9a773-37c9-4933-bd6b-aef0d7fd7e13",
+    "event_type": "UNKNOWN_PROCESS_LAUNCH",
+    "details": {
+      "client_identifier": "test-client-1",
+      "process_name": "chrome.exe",
+      "pid": 28176
+    },
+    "timestamp": "2026-06-21T05:47:54.655701+00:00"
+  }
+]

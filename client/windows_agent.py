@@ -68,6 +68,23 @@ class WindowsAgent:
             self._save_queue()
         logger.info(f"Enqueued event type '{event_type}'")
 
+    def enqueue_events_batch(self, events_list: list):
+        """Enqueues multiple events in bulk and persists the queue once."""
+        if not events_list:
+            return
+        formatted_events = []
+        for event_type, details in events_list:
+            formatted_events.append({
+                "id": str(uuid_4_fallback()),
+                "event_type": event_type,
+                "details": details,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        with self.queue_lock:
+            self.queue.extend(formatted_events)
+            self._save_queue()
+        logger.info(f"Enqueued {len(formatted_events)} events in bulk")
+
     async def fetch_active_session(self) -> str | None:
         """Queries the QVPN Client status endpoint to get the active session ID."""
         try:
@@ -83,50 +100,58 @@ class WindowsAgent:
 
     async def push_queued_events(self):
         """Attempts to push all queued events to the backend Gateway API."""
+        with self.queue_lock:
+            if not self.queue:
+                return
+
         session_id = await self.fetch_active_session()
         if not session_id:
             logger.debug("QVPN Tunnel is not active. Postponing data push.")
             return
             
+        limit = 50
         with self.queue_lock:
-            if not self.queue:
-                return
-                
-            logger.info(f"Attempting to push {len(self.queue)} queued event(s)...")
-            headers = {
-                "X-API-Key": GATEWAY_API_KEY,
-                "Content-Type": "application/json"
-            }
+            events_to_push = self.queue[:limit]
             
-            pushed_indices = []
+        if not events_to_push:
+            return
             
-            # Send events one by one to the Gateway
-            for idx, event in enumerate(self.queue):
+        logger.info(f"Attempting to push {len(events_to_push)} queued event(s)...")
+        headers = {
+            "X-API-Key": GATEWAY_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        pushed_ids = []
+        
+        # Reuse AsyncClient connection pool
+        async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
+            for event in events_to_push:
                 url = f"{GATEWAY_API_URL}/sessions/{session_id}/events"
                 payload = {
                     "event_type": event["event_type"],
                     "details": event["details"]
                 }
                 try:
-                    async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
-                        resp = await client.post(url, json=payload, headers=headers)
-                        if resp.status_code in (200, 201):
-                            pushed_indices.append(idx)
-                        else:
-                            logger.error(f"Gateway rejected event: status={resp.status_code}, response={resp.text}")
-                            # Stop push sequence on API rejection to verify connection issues or bad payload
-                            break
+                    resp = await client.post(url, json=payload, headers=headers)
+                    if resp.status_code in (200, 201):
+                        pushed_ids.append(event["id"])
+                    else:
+                        logger.error(f"Gateway rejected event: status={resp.status_code}, response={resp.text}")
+                        # Stop push sequence on API rejection to verify connection issues or bad payload
+                        break
                 except Exception as e:
                     logger.error(f"Failed to connect to Gateway for data push: {e}")
                     # Stop pushing on connection failure
                     break
                     
-            # Remove successfully pushed events
-            if pushed_indices:
-                for idx in sorted(pushed_indices, reverse=True):
-                    self.queue.pop(idx)
+        # Remove successfully pushed events
+        if pushed_ids:
+            with self.queue_lock:
+                pushed_set = set(pushed_ids)
+                self.queue = [ev for ev in self.queue if ev["id"] not in pushed_set]
                 self._save_queue()
-                logger.info(f"Successfully pushed {len(pushed_indices)} event(s) to Gateway.")
+            logger.info(f"Successfully pushed {len(pushed_ids)} event(s) to Gateway.")
 
     def poll_system_metrics(self):
         """Collects CPU, RAM, and disk utilization metrics."""
@@ -147,6 +172,7 @@ class WindowsAgent:
         """Enumerates active TCP connections and enqueues network activities."""
         try:
             conns = psutil.net_connections(kind="inet")
+            events_to_enqueue = []
             for conn in conns:
                 if conn.status == "ESTABLISHED" and conn.raddr:
                     details = {
@@ -157,7 +183,9 @@ class WindowsAgent:
                         "remote_port": conn.raddr.port,
                         "recorded_at": datetime.now(timezone.utc).isoformat()
                     }
-                    self.enqueue_event("NETWORK_ACTIVITY", details)
+                    events_to_enqueue.append(("NETWORK_ACTIVITY", details))
+            if events_to_enqueue:
+                self.enqueue_events_batch(events_to_enqueue)
         except Exception as e:
             logger.error(f"Failed to enumerate network connections: {e}")
 
