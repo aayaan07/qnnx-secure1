@@ -32,7 +32,13 @@ from tenacity import (
 )
 
 from app.core.config import settings
-from app.core.exceptions import PQCDecapsulationError, PQCKeygenError, PQCServiceUnavailable
+from app.core.exceptions import (
+    PQCDecapsulationError,
+    PQCKeygenError,
+    PQCServiceUnavailable,
+    PQCSigningError,
+    PQCVerificationError,
+)
 
 logger = logging.getLogger("qvpn.pqc_client")
 
@@ -51,28 +57,44 @@ class KeygenResponse(BaseModel):
     Response from POST /keygen.
 
     When storage_mode='customer_managed', the PQC service returns the raw
-    public and private keys as base64 strings. The gateway stores the
-    private key as a key_id reference (the key_id field from the response)
-    and holds only the public key for client distribution.
-
-    Note: the 'key_id' here maps to the 'key_id' field in the PQC API
-    response schema (KeyGenResponse.key_id).
+    public key and key_id reference.
     """
     key_id: str
     algorithm: str
     public_key: str   # base64-encoded
-    private_key: str  # base64-encoded (customer_managed; store key_id, not raw bytes)
+    private_key: str | None = None  # Make optional/None since PQC API no longer returns it
 
 
 class DecapsulationRequest(BaseModel):
     algorithm: str
     ciphertext: str   # base64-encoded
-    private_key: str  # base64-encoded (the raw key that the gateway holds server-side)
+    key_id: str       # Instead of private_key, pass key_id reference
 
 
 class DecapsulationResponse(BaseModel):
     algorithm: str
     shared_secret: str  # base64-encoded
+
+
+class SigningRequest(BaseModel):
+    algorithm: str
+    message: str
+    key_id: str       # Instead of private_key, pass key_id reference
+
+
+class SigningResponse(BaseModel):
+    signature: str
+
+
+class VerificationRequest(BaseModel):
+    algorithm: str
+    message: str
+    signature: str
+    public_key: str
+
+
+class VerificationResponse(BaseModel):
+    is_valid: bool
 
 
 # ---------------------------------------------------------------------------
@@ -191,11 +213,9 @@ class PQCClient:
         """
         Request a new keypair from the PQC service.
 
-        Returns a KeygenResponse containing key_id, public_key (b64), private_key (b64).
-        The caller should store key_id as the reference and hold private_key server-side
-        only for later decapsulation (never send to DB unencrypted in production).
+        Returns a KeygenResponse containing key_id, public_key (b64).
         """
-        body = KeygenRequest(algorithm=algorithm, storage_mode="customer_managed").model_dump()
+        body = KeygenRequest(algorithm=algorithm, storage_mode="sentinel_managed").model_dump()
         try:
             data = await self._post("keygen", body)
             return KeygenResponse(**data)
@@ -204,16 +224,16 @@ class PQCClient:
         except Exception as exc:
             raise PQCKeygenError(f"Keygen failed for {algorithm}: {exc}") from exc
 
-    async def decapsulate(self, algorithm: str, ciphertext_bytes: bytes, private_key_bytes: bytes) -> bytes:
+    async def decapsulate(self, algorithm: str, ciphertext_bytes: bytes, key_id: str) -> bytes:
         """
-        Ask the PQC service to decapsulate a KEM ciphertext using the stored private key.
+        Ask the PQC service to decapsulate a KEM ciphertext using the key_id reference.
 
         Returns the raw shared_secret bytes.
         """
         body = DecapsulationRequest(
             algorithm=algorithm,
             ciphertext=base64.b64encode(ciphertext_bytes).decode("ascii"),
-            private_key=base64.b64encode(private_key_bytes).decode("ascii"),
+            key_id=key_id,
         ).model_dump()
         try:
             data = await self._post("kem/decapsulate", body)
@@ -223,6 +243,47 @@ class PQCClient:
             raise
         except Exception as exc:
             raise PQCDecapsulationError(f"Decapsulation failed for {algorithm}: {exc}") from exc
+
+    async def sign(self, algorithm: str, message: str, key_id: str) -> str:
+        """
+        Ask the PQC service to sign a message using the key ID reference.
+
+        Returns the signature string.
+        """
+        body = SigningRequest(
+            algorithm=algorithm,
+            message=message,
+            key_id=key_id,
+        ).model_dump()
+        try:
+            data = await self._post("sign", body)
+            resp = SigningResponse(**data)
+            return resp.signature
+        except PQCServiceUnavailable:
+            raise
+        except Exception as exc:
+            raise PQCSigningError(f"Signing failed for {algorithm}: {exc}") from exc
+
+    async def verify(self, algorithm: str, message: str, signature: str, public_key: str) -> bool:
+        """
+        Ask the PQC service to verify a signature.
+
+        Returns whether the signature is valid.
+        """
+        body = VerificationRequest(
+            algorithm=algorithm,
+            message=message,
+            signature=signature,
+            public_key=public_key,
+        ).model_dump()
+        try:
+            data = await self._post("verify", body)
+            resp = VerificationResponse(**data)
+            return resp.is_valid
+        except PQCServiceUnavailable:
+            raise
+        except Exception as exc:
+            raise PQCVerificationError(f"Verification failed for {algorithm}: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +297,19 @@ async def keygen(algorithm: str) -> KeygenResponse:
         return await client.keygen(algorithm)
 
 
-async def decapsulate(algorithm: str, ciphertext_bytes: bytes, private_key_bytes: bytes) -> bytes:
+async def decapsulate(algorithm: str, ciphertext_bytes: bytes, key_id: str) -> bytes:
     """Module-level shortcut — creates a short-lived client and decapsulates."""
     async with PQCClient() as client:
-        return await client.decapsulate(algorithm, ciphertext_bytes, private_key_bytes)
+        return await client.decapsulate(algorithm, ciphertext_bytes, key_id)
+
+
+async def sign(algorithm: str, message: str, key_id: str) -> str:
+    """Module-level shortcut — creates a short-lived client and signs."""
+    async with PQCClient() as client:
+        return await client.sign(algorithm, message, key_id)
+
+
+async def verify(algorithm: str, message: str, signature: str, public_key: str) -> bool:
+    """Module-level shortcut — creates a short-lived client and verifies."""
+    async with PQCClient() as client:
+        return await client.verify(algorithm, message, signature, public_key)

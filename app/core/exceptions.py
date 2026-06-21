@@ -30,6 +30,14 @@ class PQCKeygenError(GatewayError):
     """Raised when the PQC API fails to generate a keypair."""
 
 
+class PQCSigningError(GatewayError):
+    """Raised when the PQC API fails to sign a message."""
+
+
+class PQCVerificationError(GatewayError):
+    """Raised when the PQC API fails to verify a signature."""
+
+
 class HandshakeError(GatewayError):
     """Raised when a VPN handshake cannot be completed."""
 
@@ -95,6 +103,14 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(PQCKeygenError)
     async def pqc_keygen_handler(request: Request, exc: PQCKeygenError):
         return _json_error("pqc_keygen_error", str(exc), 502)
+
+    @app.exception_handler(PQCSigningError)
+    async def pqc_signing_handler(request: Request, exc: PQCSigningError):
+        return _json_error("pqc_signing_error", str(exc), 502)
+
+    @app.exception_handler(PQCVerificationError)
+    async def pqc_verification_handler(request: Request, exc: PQCVerificationError):
+        return _json_error("pqc_verification_error", str(exc), 502)
 
     @app.exception_handler(HandshakeError)
     async def handshake_handler(request: Request, exc: HandshakeError):

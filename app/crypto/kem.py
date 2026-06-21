@@ -61,24 +61,25 @@ class KEMManager:
             }
         """
         resp: KeygenResponse = await _keygen(algorithm_name)
+        private_key_b64 = resp.private_key or ""
         return {
             "key_id": resp.key_id,
             "public_key": base64.b64decode(resp.public_key),
-            "private_key": base64.b64decode(resp.private_key),
+            "private_key": base64.b64decode(private_key_b64) if private_key_b64 else b"",
         }
 
     @staticmethod
-    async def decapsulate(algorithm_name: str, ciphertext: bytes, private_key: bytes) -> dict[str, bytes]:
+    async def decapsulate(algorithm_name: str, ciphertext: bytes, key_id: str) -> dict[str, bytes]:
         """
-        Decapsulate a KEM ciphertext using the server-side private key.
+        Decapsulate a KEM ciphertext using the key ID reference.
 
         Args:
             algorithm_name: e.g. "ML-KEM-768"
             ciphertext:     Raw ciphertext bytes from the client.
-            private_key:    Raw private key bytes stored server-side.
+            key_id:         The key ID reference.
 
         Returns:
             { "shared_secret": bytes }
         """
-        shared_secret = await _decapsulate(algorithm_name, ciphertext, private_key)
+        shared_secret = await _decapsulate(algorithm_name, ciphertext, key_id)
         return {"shared_secret": shared_secret}

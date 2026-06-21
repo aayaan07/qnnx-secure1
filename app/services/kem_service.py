@@ -38,10 +38,10 @@ async def encapsulate_secret(algorithm: str, public_key: bytes) -> dict:
     )
 
 
-async def decapsulate_secret(algorithm: str, ciphertext: bytes, private_key: bytes) -> dict:
+async def decapsulate_secret(algorithm: str, ciphertext: bytes, key_id: str) -> dict:
     """Async: decapsulate a KEM ciphertext via the PQC API."""
     algorithm = _resolve_algorithm(algorithm)
-    decap = await KEMManager.decapsulate(algorithm, ciphertext, private_key)
+    decap = await KEMManager.decapsulate(algorithm, ciphertext, key_id)
     return {
         "algorithm": algorithm,
         "shared_secret": decap["shared_secret"],
