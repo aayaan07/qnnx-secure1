@@ -68,31 +68,67 @@ def close_session(db: DBSession, session_id: str, reason: str = "CLIENT_DISCONNE
     """
     Close a session cleanly.
 
-    Updates tunnel_status → CLOSED, records closed_at timestamp,
-    removes the AES key from the in-memory store, and logs an audit event.
+    Each cleanup step runs in its own try/except so that a failure in one step
+    (e.g. a DB error) does not prevent later steps — in particular, the
+    session_store.evict() call that frees the in-memory AES key must always run.
+
+    Steps:
+      1. Update Session row → CLOSED / kem_state=CLOSED
+      2. Update TunnelState row → DISCONNECTED
+      3. Evict AES key from in-memory session_store  ← CRITICAL, always runs
+      4. Record CLIENT_DISCONNECT audit event
     """
     now = datetime.now(timezone.utc)
-    _session_repo.update(db, session_id, {
-        "tunnel_status": TunnelStatus.CLOSED,
-        "kem_state": KEMState.CLOSED,
-        "closed_at": now,
-    })
-    ts = _tunnel_state_repo.get_by_session_id(db, session_id)
-    if ts:
-        _tunnel_state_repo.update(db, str(ts.id), {"status": "DISCONNECTED"})
+    cleanup_errors: list[str] = []
 
-    # Evict the AES key from memory
-    session_store.evict(session_id)
+    # Step 1 — mark session as closed in DB
+    try:
+        _session_repo.update(db, session_id, {
+            "tunnel_status": TunnelStatus.CLOSED,
+            "kem_state": KEMState.CLOSED,
+            "closed_at": now,
+        })
+    except Exception as exc:
+        cleanup_errors.append(f"session_repo.update: {exc}")
+        logger.error("[SESSION] close_session: failed to update session row (session=%s): %s", session_id, exc)
 
-    # Audit
-    _event_repo.record(
-        db=db,
-        session_id=session_id,
-        event_type="CLIENT_DISCONNECT",
-        details={"reason": reason},
-    )
+    # Step 2 — mark tunnel state as disconnected
+    try:
+        ts = _tunnel_state_repo.get_by_session_id(db, session_id)
+        if ts:
+            _tunnel_state_repo.update(db, str(ts.id), {"status": "DISCONNECTED"})
+    except Exception as exc:
+        cleanup_errors.append(f"tunnel_state_repo.update: {exc}")
+        logger.error("[SESSION] close_session: failed to update tunnel_state (session=%s): %s", session_id, exc)
 
-    logger.info("[SESSION] Closed session=%s reason=%s", session_id, reason)
+    # Step 3 — evict AES key from in-memory store (CRITICAL — must always run)
+    try:
+        session_store.evict(session_id)
+    except Exception as exc:
+        cleanup_errors.append(f"session_store.evict: {exc}")
+        logger.error("[SESSION] close_session: CRITICAL — failed to evict AES key (session=%s): %s", session_id, exc)
+
+    # Step 4 — record audit event
+    try:
+        _event_repo.record(
+            db=db,
+            session_id=session_id,
+            event_type="CLIENT_DISCONNECT",
+            details={"reason": reason},
+        )
+    except Exception as exc:
+        cleanup_errors.append(f"event_repo.record: {exc}")
+        logger.error("[SESSION] close_session: failed to record disconnect event (session=%s): %s", session_id, exc)
+
+    if cleanup_errors:
+        logger.warning(
+            "[SESSION] close_session completed with %d error(s) for session=%s: %s",
+            len(cleanup_errors),
+            session_id,
+            "; ".join(cleanup_errors),
+        )
+    else:
+        logger.info("[SESSION] Closed session=%s reason=%s", session_id, reason)
 
 
 # ---------------------------------------------------------------------------

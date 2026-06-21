@@ -42,6 +42,14 @@ async def lifespan(app: FastAPI):
     gateway_server = await start_gateway_server()
     app.state.gateway_server = gateway_server
 
+    if settings.DEBUG_MODE_PQC:
+        logger.warning("=" * 60)
+        logger.warning("[MAIN] ⚠  PQC DEBUG MODE IS ENABLED")
+        logger.warning("[MAIN] ⚠  PQC key exchange is BYPASSED on this gateway.")
+        logger.warning("[MAIN] ⚠  MASTER_KEY is used for all AES-GCM operations.")
+        logger.warning("[MAIN] ⚠  DO NOT run this configuration in production.")
+        logger.warning("=" * 60)
+
     logger.info("[MAIN] Gateway ready. HTTP control plane: /docs | VPN tunnel: port 5151")
     yield
 

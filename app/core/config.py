@@ -1,4 +1,8 @@
+import logging
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_cfg_logger = logging.getLogger("qvpn.config")
 
 
 class Settings(BaseSettings):
@@ -36,6 +40,48 @@ class Settings(BaseSettings):
 
     # Tunnel heartbeat — sessions older than this with no heartbeat are expired
     HEARTBEAT_TIMEOUT_SECONDS: int = 60
+
+    # ---------------------------------------------------------------------------
+    # PQC Debug Mode — bypass all PQC operations for testing without Sentinel
+    #
+    # DEBUG_MODE_PQC=true  → skip ML-KEM handshake; use MASTER_KEY as AES-256 key.
+    # MASTER_KEY           → 64-character hex string (32 bytes).
+    #
+    # Both Client and Gateway must share the same MASTER_KEY.
+    # WARNING: Never enable in production.
+    # ---------------------------------------------------------------------------
+    DEBUG_MODE_PQC: bool = False
+    MASTER_KEY: str = ""  # hex string, 64 chars = 32 bytes AES-256
+    DEBUG_AES: bool = False
+
+    @model_validator(mode="after")
+    def _validate_debug_mode(self) -> "Settings":
+        if not self.DEBUG_MODE_PQC:
+            return self
+        # MASTER_KEY is required when debug mode is active
+        if not self.MASTER_KEY:
+            raise ValueError(
+                "DEBUG_MODE_PQC=true but MASTER_KEY is not set. "
+                "Provide a 64-character hex string (32 bytes)."
+            )
+        try:
+            key_bytes = bytes.fromhex(self.MASTER_KEY)
+        except ValueError:
+            raise ValueError(
+                "MASTER_KEY is not valid hex. "
+                "Provide exactly 64 hex characters (32 bytes)."
+            )
+        if len(key_bytes) != 32:
+            raise ValueError(
+                f"MASTER_KEY must be exactly 32 bytes (64 hex chars), "
+                f"got {len(key_bytes)} bytes ({len(self.MASTER_KEY)} hex chars)."
+            )
+        return self
+
+    @property
+    def master_key_bytes(self) -> bytes:
+        """Return the MASTER_KEY as raw bytes. Only valid when DEBUG_MODE_PQC=True."""
+        return bytes.fromhex(self.MASTER_KEY) if self.MASTER_KEY else b""
 
 
 settings = Settings()
