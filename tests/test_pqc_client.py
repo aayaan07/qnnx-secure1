@@ -222,6 +222,7 @@ def test_handshake_integration():
         # Mock PQCClient encapsulate, REST HTTP Client post, and EEL UI
         with patch("client.pqc_client.PQCClient.encapsulate", return_value=(mock_ciphertext, mock_shared_secret)), \
              patch("httpx.AsyncClient.post", side_effect=mock_post), \
+             patch("client.qvpn_client.DEBUG_MODE_PQC", False), \
              patch("client.qvpn_client.eel") as mock_eel:
             
             mock_eel.trigger_heartbeat.return_value = lambda: None
@@ -254,3 +255,296 @@ def test_handshake_integration():
         await client.disconnect()
 
     asyncio.run(run())
+
+
+def test_traffic_logging():
+    """
+    Verifies that all AES encrypted traffic sent to the gateway is logged to input.txt,
+    and all decrypted traffic received from the gateway is logged to output.txt.
+    """
+    import os
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    client_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    input_path = os.path.join(client_dir, "input.txt")
+    output_path = os.path.join(client_dir, "output.txt")
+
+    # Clean up existing test files
+    for p in (input_path, output_path):
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
+    class LogTestingMockGateway:
+        def __init__(self, host="127.0.0.1", port=9998):
+            self.host = host
+            self.port = port
+            self.server = None
+            self.derived_key = None
+
+        async def handle_connection(self, reader, writer):
+            try:
+                # 1. Read session_id
+                len_bytes = await reader.readexactly(4)
+                session_len = int.from_bytes(len_bytes, byteorder="big")
+                session_id = (await reader.readexactly(session_len)).decode("utf-8")
+
+                # Echo confirmation
+                writer.write(len(session_id).to_bytes(4, byteorder="big"))
+                writer.write(session_id.encode("utf-8"))
+                await writer.drain()
+
+                # 2. Read target JSON
+                len_bytes = await reader.readexactly(4)
+                target_len = int.from_bytes(len_bytes, byteorder="big")
+                _ = await reader.readexactly(target_len)
+
+                # Derive AES key
+                shared_secret = b"mock-shared-secret-bytes-ml-kem-768-padding".ljust(32, b"\x00")
+                from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+                hkdf = HKDF(
+                    algorithm=HKDF_ALGORITHM,
+                    length=HKDF_KEY_LENGTH,
+                    salt=HKDF_SALT,
+                    info=HKDF_INFO
+                )
+                self.derived_key = hkdf.derive(shared_secret)
+
+                # 3. Read one data packet from client
+                len_bytes = await reader.readexactly(4)
+                pkt_len = int.from_bytes(len_bytes, byteorder="big")
+                payload = await reader.readexactly(pkt_len)
+
+                # Decrypt data packet
+                cipher = AESGCM(self.derived_key)
+                nonce = payload[:12]
+                ciphertext = payload[12:]
+                plaintext = cipher.decrypt(nonce, ciphertext, None)
+
+                # 4. Echo back some response data, encrypted
+                resp_plaintext = plaintext + b" echoed-response-data"
+                resp_nonce = b"\x00" * 12
+                resp_ciphertext = cipher.encrypt(resp_nonce, resp_plaintext, None)
+                resp_payload = resp_nonce + resp_ciphertext
+                writer.write(len(resp_payload).to_bytes(4, byteorder="big"))
+                writer.write(resp_payload)
+                await writer.drain()
+
+            except Exception:
+                pass
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+
+        async def start(self):
+            self.server = await asyncio.start_server(self.handle_connection, self.host, self.port)
+
+        async def stop(self):
+            if self.server:
+                self.server.close()
+                await self.server.wait_closed()
+
+    async def run():
+        gateway = LogTestingMockGateway(port=9998)
+        await gateway.start()
+
+        client = QVPNClient(gateway_ip="127.0.0.1", gateway_port=9998)
+
+        mock_ciphertext = b"mock-client-ciphertext-bytes".ljust(1088, b"\x00")
+        mock_shared_secret = b"mock-shared-secret-bytes-ml-kem-768-padding".ljust(32, b"\x00")
+        mock_session_id = str(uuid.uuid4())
+        mock_pubkey_b64 = base64.b64encode(b"mock-pubkey-bytes").decode("ascii")
+
+        async def mock_post(url, *args, **kwargs):
+            m_resp = MagicMock()
+            m_resp.status_code = 200
+            if "handshake/init" in url:
+                m_resp.json.return_value = {
+                    "session_id": mock_session_id,
+                    "algorithm": "ML-KEM-768",
+                    "public_key": mock_pubkey_b64
+                }
+            elif "handshake/complete" in url:
+                m_resp.json.return_value = {
+                    "session_id": mock_session_id,
+                    "status": "ESTABLISHED"
+                }
+            return m_resp
+
+        with patch("client.pqc_client.PQCClient.encapsulate", return_value=(mock_ciphertext, mock_shared_secret)), \
+             patch("httpx.AsyncClient.post", side_effect=mock_post), \
+             patch("client.qvpn_client.DEBUG_MODE_PQC", False), \
+             patch("client.qvpn_client.eel") as mock_eel:
+
+            mock_eel.trigger_heartbeat.return_value = lambda: None
+
+            await client.connect()
+
+            # Trigger TCP client data plane
+            p_reader, p_writer = await asyncio.open_connection("127.0.0.1", 8282)
+            p_writer.write(b"localhost:8001\n")
+            await p_writer.drain()
+
+            ok_line = await p_reader.readline()
+            assert ok_line == b"OK\n"
+
+            # Send some test payload data through proxy
+            p_writer.write(b"hello test log message")
+            await p_writer.drain()
+
+            # Read the response echoed back from the gateway (via local proxy server)
+            resp = await p_reader.read(1024)
+            assert b"hello test log message echoed-response-data" in resp
+
+            p_writer.close()
+            await p_writer.wait_closed()
+
+        await gateway.stop()
+        await client.disconnect()
+
+        # Assert that input.txt and output.txt exist and contain our data
+        assert os.path.exists(input_path), "input.txt was not created"
+        assert os.path.exists(output_path), "output.txt was not created"
+
+        with open(input_path, "rb") as f:
+            input_content = f.read()
+        with open(output_path, "rb") as f:
+            output_content = f.read()
+
+        assert b"localhost" in input_content
+        assert b"hello test log message" in input_content
+        assert b"---SEPARATOR---" in input_content
+
+        assert b"hello test log message echoed-response-data" in output_content
+        assert b"---SEPARATOR---" in output_content
+
+    asyncio.run(run())
+
+
+def test_debug_aes_mode():
+    """
+    Verifies that when DEBUG_AES is True, traffic is sent completely unencrypted.
+    """
+    import os
+    import json
+    import uuid
+    import base64
+    from unittest.mock import MagicMock, patch
+
+    class PlaintextTestingMockGateway:
+        def __init__(self, host="127.0.0.1", port=9997):
+            self.host = host
+            self.port = port
+            self.server = None
+
+        async def handle_connection(self, reader, writer):
+            try:
+                # 1. Read session_id
+                len_bytes = await reader.readexactly(4)
+                session_len = int.from_bytes(len_bytes, byteorder="big")
+                session_id = (await reader.readexactly(session_len)).decode("utf-8")
+
+                # Echo confirmation
+                writer.write(len(session_id).to_bytes(4, byteorder="big"))
+                writer.write(session_id.encode("utf-8"))
+                await writer.drain()
+
+                # 2. Read target JSON (in plaintext!)
+                len_bytes = await reader.readexactly(4)
+                target_len = int.from_bytes(len_bytes, byteorder="big")
+                target_json = (await reader.readexactly(target_len)).decode("utf-8")
+                target_data = json.loads(target_json)
+                assert target_data["host"] == "localhost"
+
+                # 3. Read data packet (in plaintext!)
+                len_bytes = await reader.readexactly(4)
+                pkt_len = int.from_bytes(len_bytes, byteorder="big")
+                plaintext = await reader.readexactly(pkt_len)
+                assert plaintext == b"hello plaintext debug aes"
+
+                # 4. Echo back plaintext response
+                resp = plaintext + b" echoed-plaintext"
+                writer.write(len(resp).to_bytes(4, byteorder="big"))
+                writer.write(resp)
+                await writer.drain()
+
+            except Exception as e:
+                pass
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+
+        async def start(self):
+            self.server = await asyncio.start_server(self.handle_connection, self.host, self.port)
+
+        async def stop(self):
+            if self.server:
+                self.server.close()
+                await self.server.wait_closed()
+
+    async def run():
+        gateway = PlaintextTestingMockGateway(port=9997)
+        await gateway.start()
+
+        client = QVPNClient(gateway_ip="127.0.0.1", gateway_port=9997)
+
+        mock_ciphertext = b"mock-client-ciphertext-bytes".ljust(1088, b"\x00")
+        mock_shared_secret = b"mock-shared-secret-bytes-ml-kem-768-padding".ljust(32, b"\x00")
+        mock_session_id = str(uuid.uuid4())
+        mock_pubkey_b64 = base64.b64encode(b"mock-pubkey-bytes").decode("ascii")
+
+        async def mock_post(url, *args, **kwargs):
+            m_resp = MagicMock()
+            m_resp.status_code = 200
+            if "handshake/init" in url:
+                m_resp.json.return_value = {
+                    "session_id": mock_session_id,
+                    "algorithm": "ML-KEM-768",
+                    "public_key": mock_pubkey_b64
+                }
+            elif "handshake/complete" in url:
+                m_resp.json.return_value = {
+                    "session_id": mock_session_id,
+                    "status": "ESTABLISHED"
+                }
+            return m_resp
+
+        with patch("client.pqc_client.PQCClient.encapsulate", return_value=(mock_ciphertext, mock_shared_secret)), \
+             patch("httpx.AsyncClient.post", side_effect=mock_post), \
+             patch("client.qvpn_client.DEBUG_MODE_PQC", False), \
+             patch("client.qvpn_client.DEBUG_AES", True), \
+             patch("client.qvpn_client.eel") as mock_eel:
+
+            mock_eel.trigger_heartbeat.return_value = lambda: None
+
+            await client.connect()
+
+            p_reader, p_writer = await asyncio.open_connection("127.0.0.1", 8282)
+            p_writer.write(b"localhost:8001\n")
+            await p_writer.drain()
+
+            ok_line = await p_reader.readline()
+            assert ok_line == b"OK\n"
+
+            p_writer.write(b"hello plaintext debug aes")
+            await p_writer.drain()
+
+            resp = await p_reader.read(1024)
+            assert b"hello plaintext debug aes echoed-plaintext" in resp
+
+            p_writer.close()
+            await p_writer.wait_closed()
+
+        await gateway.stop()
+        await client.disconnect()
+
+    asyncio.run(run())
+
