@@ -169,7 +169,7 @@ async def _pipe_remote_to_client(
 
     try:
         while True:
-            raw_traffic = await remote_reader.read(4096)
+            raw_traffic = await remote_reader.read(65536)
             if not raw_traffic:
                 break  # Remote closed connection
 
