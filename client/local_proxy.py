@@ -233,6 +233,17 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                     
             await asyncio.gather(pipe_client_to_qvpn(), pipe_qvpn_to_client())
         
+    except (ConnectionResetError, ConnectionAbortedError, OSError) as e:
+        logger.info(f"Client connection reset or closed: {e}")
+        try:
+            writer.close()
+        except Exception:
+            pass
+        if qvpn_writer:
+            try:
+                qvpn_writer.close()
+            except Exception:
+                pass
     except Exception as e:
         logger.error(f"Unexpected error in client handler: {e}", exc_info=True)
         try:

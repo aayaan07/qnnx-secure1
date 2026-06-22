@@ -304,45 +304,61 @@ class QVPNClient:
         headers = {"X-API-Key": GATEWAY_API_KEY}
         logger.info("[Heartbeat] Loop started for session=%s", self.state.session_id)
 
-        while self._keep_running and self.state.tunnel_status == "active":
-            try:
-                heartbeat_url = f"{GATEWAY_API_URL}/sessions/{self.state.session_id}/heartbeat"
-                async with httpx.AsyncClient(timeout=15.0, trust_env=False) as client:
-                    resp = await client.post(heartbeat_url, headers=headers)
-                    if resp.status_code == 200:
-                        self.state.heartbeat_status = "healthy"
-                        call_eel("trigger_heartbeat")
-                    else:
-                        raise Exception(f"Heartbeat HTTP error: {resp.status_code}")
-                await asyncio.sleep(10.0)
+        consecutive_failures = 0
+        max_failures = 3
 
-            except asyncio.CancelledError:
-                # disconnect() cancelled this task intentionally — exit cleanly.
-                logger.info("[Heartbeat] Loop cancelled cleanly for session=%s.", self.state.session_id)
-                return
+        try:
+            async with httpx.AsyncClient(timeout=15.0, trust_env=False) as client:
+                while self._keep_running and self.state.tunnel_status == "active":
+                    try:
+                        heartbeat_url = f"{GATEWAY_API_URL}/sessions/{self.state.session_id}/heartbeat"
+                        resp = await client.post(heartbeat_url, headers=headers)
+                        if resp.status_code == 200:
+                            self.state.heartbeat_status = "healthy"
+                            consecutive_failures = 0
+                            call_eel("trigger_heartbeat")
+                            await asyncio.sleep(10.0)
+                        else:
+                            raise Exception(f"Heartbeat HTTP error: {resp.status_code}")
 
-            except Exception as e:
-                logger.error(
-                    "[Heartbeat] Transmission failed for session=%s: %s: %s",
-                    self.state.session_id, type(e).__name__, e,
-                )
-                self.state.heartbeat_status = "lost"
-                self.state.tunnel_status = "error"
-                self._emit_tunnel_event("HEARTBEAT_LOSS", {"session_id": self.state.session_id})
+                    except asyncio.CancelledError:
+                        raise
 
-                # Deactivate system proxy before triggering reconnect
-                try:
-                    clear_system_proxy()
-                except Exception as exc:
-                    logger.debug("[Heartbeat] clear_system_proxy failed: %s", exc)
+                    except Exception as e:
+                        consecutive_failures += 1
+                        logger.warning(
+                            "[Heartbeat] Failed (attempt %d/%d) for session=%s: %s: %s",
+                            consecutive_failures, max_failures, self.state.session_id, type(e).__name__, e,
+                        )
+                        if consecutive_failures >= max_failures:
+                            logger.error("[Heartbeat] Max failures reached. Tearing down connection.")
+                            self.state.heartbeat_status = "lost"
+                            self.state.tunnel_status = "error"
+                            self._emit_tunnel_event("HEARTBEAT_LOSS", {"session_id": self.state.session_id})
 
-                call_eel("update_ui_state", "error")
+                            # Deactivate system proxy before triggering reconnect
+                            try:
+                                clear_system_proxy()
+                            except Exception as exc:
+                                logger.debug("[Heartbeat] clear_system_proxy failed: %s", exc)
 
-                # Trigger full reconnect only if we are not already disconnecting
-                if not self._disconnecting:
-                    logger.info("[Heartbeat] Scheduling reconnect for session=%s.", self.state.session_id)
-                    asyncio.create_task(self.connect(), name="reconnect")
-                break
+                            call_eel("update_ui_state", "error")
+
+                            # Trigger full reconnect only if we are not already disconnecting
+                            if not self._disconnecting:
+                                logger.info("[Heartbeat] Scheduling reconnect for session=%s.", self.state.session_id)
+                                asyncio.create_task(self.connect(), name="reconnect")
+                            break
+                        else:
+                            # Retry sooner on temporary failures
+                            await asyncio.sleep(2.0)
+
+        except asyncio.CancelledError:
+            # disconnect() cancelled this task intentionally — exit cleanly.
+            logger.info("[Heartbeat] Loop cancelled cleanly for session=%s.", self.state.session_id)
+            return
+        except Exception as e:
+            logger.error("[Heartbeat] Unexpected exception in loop client: %s", e)
 
         logger.info("[Heartbeat] Loop exited for session=%s.", self.state.session_id)
 
