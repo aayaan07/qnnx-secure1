@@ -87,10 +87,9 @@ class HandshakeCompleteResponse(BaseModel):
 )
 async def handshake_init(
     payload: HandshakeInitRequest,
-    db: DBSession = Depends(get_db),
 ):
     try:
-        result = await init_handshake(db=db, client_identifier=payload.client_identifier)
+        result = await init_handshake(client_identifier=payload.client_identifier)
         return HandshakeInitResponse(
             session_id=result["session_id"],
             algorithm=result["algorithm"],
@@ -120,12 +119,10 @@ async def handshake_init(
 )
 async def handshake_complete(
     payload: HandshakeCompleteRequest,
-    db: DBSession = Depends(get_db),
 ):
     try:
         ciphertext_bytes = base64.b64decode(payload.kem_ciphertext)
         result = await complete_handshake(
-            db=db,
             session_id=payload.session_id,
             kem_ciphertext=ciphertext_bytes,
             remote_ip=payload.remote_ip,

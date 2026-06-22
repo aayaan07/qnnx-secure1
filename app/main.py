@@ -54,8 +54,22 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    import asyncio
     logger.info("[MAIN] Shutting down gateway...")
     gateway_server.close()
+
+    from app.gateway.socket_server import _expiry_task, _active_tasks
+    if _expiry_task and not _expiry_task.done():
+        logger.info("[MAIN] Cancelling session expiry monitor task...")
+        _expiry_task.cancel()
+
+    if _active_tasks:
+        logger.info("[MAIN] Cancelling %d active connection task(s)...", len(_active_tasks))
+        for task in list(_active_tasks):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*_active_tasks, return_exceptions=True)
+
     await gateway_server.wait_closed()
     logger.info("[MAIN] Gateway stopped.")
 

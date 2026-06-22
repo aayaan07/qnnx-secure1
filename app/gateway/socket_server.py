@@ -53,6 +53,9 @@ _session_repo = SessionRepository()
 HOST = "0.0.0.0"
 VPN_PORT = 5151  # Raw TCP VPN tunnel port — separate from the FastAPI HTTP port
 
+_active_tasks = set()
+_expiry_task = None
+
 
 # ---------------------------------------------------------------------------
 # Wire protocol helpers
@@ -237,7 +240,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     remote_writer: asyncio.StreamWriter | None = None
     upstream: asyncio.Task | None = None
     downstream: asyncio.Task | None = None
-    db = None
+
+    current_task = asyncio.current_task()
+    _active_tasks.add(current_task)
 
     try:
         # ── SESSION RESUMPTION ────────────────────────────────────────────────
@@ -265,21 +270,26 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             aes_key = session_store.get(session_id)
 
             # Query database to verify session exists and is in established state
-            db = SessionLocal()
-            try:
-                session_uuid = uuid.UUID(session_id)
-            except ValueError:
-                raise SessionNotEstablished(f"Invalid session UUID format: '{session_id}'")
+            def _verify_session():
+                db = SessionLocal()
+                try:
+                    session_uuid = uuid.UUID(session_id)
+                    session = _session_repo.get_by_id(db, session_uuid)
+                    return session is not None and is_session_resumable(session)
+                except ValueError:
+                    return False
+                finally:
+                    db.close()
 
-            session = await asyncio.to_thread(lambda: _session_repo.get_by_id(db, session_uuid))
+            session_valid = await asyncio.to_thread(_verify_session)
 
-            if not aes_key or not session or not is_session_resumable(session):
+            if not aes_key or not session_valid:
                 logger.warning(
                     "[GATEWAY] Session resumption rejected: session=%s "
-                    "(key_found=%s, session_found=%s)",
+                    "(key_found=%s, session_valid=%s)",
                     session_id,
                     bool(aes_key),
-                    bool(session),
+                    session_valid,
                 )
                 try:
                     _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
@@ -381,6 +391,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
     finally:
         logger.debug("[GATEWAY] Cleanup started: session=%s", session_id)
+        _active_tasks.discard(current_task)
 
         # Cancel any still-running pipe tasks first
         for task, name in ((upstream, "upstream"), (downstream, "downstream")):
@@ -397,13 +408,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         # Close the remote writer (if the connection to the target was opened)
         if remote_writer:
             await _safe_close(remote_writer, f"remote_writer[{session_id}]")
-
-        # Close the database session
-        if db:
-            try:
-                db.close()
-            except Exception as exc:
-                logger.debug("[GATEWAY] DB close failed (session=%s): %s", session_id, exc)
 
         logger.debug("[GATEWAY] Cleanup complete: session=%s", session_id)
 
@@ -466,6 +470,7 @@ async def start_gateway_server():
 
     Returns the asyncio.Server object so the caller can manage its lifecycle.
     """
+    global _expiry_task
     server = await asyncio.start_server(handle_client, HOST, VPN_PORT)
     logger.info("[GATEWAY] TCP VPN server listening on %s:%d", HOST, VPN_PORT)
 
@@ -474,7 +479,7 @@ async def start_gateway_server():
         logger.warning("[GATEWAY] DEBUG MODE: MASTER_KEY (%d bytes) in use.", len(settings.master_key_bytes))
 
     # Start background session expiry
-    asyncio.create_task(expire_stale_sessions())
+    _expiry_task = asyncio.create_task(expire_stale_sessions())
     logger.info("[GATEWAY] Session expiry monitor started (interval=%ds)", settings.HEARTBEAT_TIMEOUT_SECONDS)
 
     return server

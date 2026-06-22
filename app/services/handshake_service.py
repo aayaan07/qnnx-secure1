@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.models.session import KEMState, TunnelStatus
 
 from app.core.config import settings
+from app.core.database import SessionLocal
 from app.core.exceptions import (
     ClientNotRegistered,
     DuplicateHandshake,
@@ -64,7 +65,7 @@ _event_repo = TunnelEventRepository()
 # ---------------------------------------------------------------------------
 
 
-async def init_handshake(db: DBSession, client_identifier: str) -> dict:
+async def init_handshake(db: DBSession | None = None, client_identifier: str = "") -> dict:
     """
     Phase 1 of the VPN handshake.
 
@@ -79,17 +80,22 @@ async def init_handshake(db: DBSession, client_identifier: str) -> dict:
     """
     # Step 1 — client lookup (sync DB → thread)
     def _lookup_client():
-        client = _client_repo.get_by_identifier(db, client_identifier)
-        return client
+        _db = db or SessionLocal()
+        try:
+            client = _client_repo.get_by_identifier(_db, client_identifier)
+            if not client:
+                return None, None, None
+            return client.id, client.is_active, client.kem_algorithm
+        finally:
+            if not db:
+                _db.close()
 
-    client = await asyncio.to_thread(_lookup_client)
+    client_id, is_active, algorithm = await asyncio.to_thread(_lookup_client)
 
-    if not client:
+    if not client_id:
         raise ClientNotRegistered(f"client_identifier '{client_identifier}' not registered")
-    if not client.is_active:
+    if not is_active:
         raise ClientNotRegistered(f"client_identifier '{client_identifier}' is disabled")
-
-    algorithm = client.kem_algorithm
 
     # Step 2 — keygen via PQC API (fully async)
     try:
@@ -107,32 +113,54 @@ async def init_handshake(db: DBSession, client_identifier: str) -> dict:
     session_id = uuid.uuid4()
 
     def _create_session():
-        _session_repo.create(db, {
-            "id": session_id,
-            "client_id": client.id,
-            "kem_algorithm": algorithm,
-            "pqc_key_id": keygen_resp.key_id,
-            "kem_state": KEMState.PENDING,
-            "tunnel_status": TunnelStatus.CONNECTING,
-        })
-        # Store freshly generated public_key and key_id reference.
-        # Since private key is not returned by the API, private_key is stored as empty bytes.
-        _client_repo.update(db, client.id, {
-            "public_key": public_key_bytes,
-            "private_key": private_key_bytes,
-            "pqc_key_id": keygen_resp.key_id,
-        })
+        _db = db or SessionLocal()
+        try:
+            _session_repo.create(_db, {
+                "id": session_id,
+                "client_id": client_id,
+                "kem_algorithm": algorithm,
+                "pqc_key_id": keygen_resp.key_id,
+                "kem_state": KEMState.PENDING,
+                "tunnel_status": TunnelStatus.CONNECTING,
+            })
+            # Store freshly generated public_key and key_id reference.
+            # Since private key is not returned by the API, private_key is stored as empty bytes.
+            _client_repo.update(_db, client_id, {
+                "public_key": public_key_bytes,
+                "private_key": private_key_bytes,
+                "pqc_key_id": keygen_resp.key_id,
+            })
+            if not db:
+                _db.commit()
+        except Exception:
+            if not db:
+                _db.rollback()
+            raise
+        finally:
+            if not db:
+                _db.close()
 
     await asyncio.to_thread(_create_session)
 
     # Step 4 — audit event
     def _record_init_event():
-        _event_repo.record(
-            db=db,
-            session_id=session_id,
-            event_type="HANDSHAKE_INIT",
-            details={"client_identifier": client_identifier, "algorithm": algorithm},
-        )
+        _db = db or SessionLocal()
+        try:
+            _event_repo.record(
+                db=_db,
+                session_id=session_id,
+                event_type="HANDSHAKE_INIT",
+                details={"client_identifier": client_identifier, "algorithm": algorithm},
+            )
+            if not db:
+                _db.commit()
+        except Exception:
+            if not db:
+                _db.rollback()
+            raise
+        finally:
+            if not db:
+                _db.close()
 
     await asyncio.to_thread(_record_init_event)
 
@@ -154,11 +182,11 @@ async def init_handshake(db: DBSession, client_identifier: str) -> dict:
 
 
 async def complete_handshake(
-    db: DBSession,
-    session_id: str,
-    kem_ciphertext: bytes,
-    remote_ip: str,
-    remote_port: int,
+    db: DBSession | None = None,
+    session_id: str = "",
+    kem_ciphertext: bytes = b"",
+    remote_ip: str = "127.0.0.1",
+    remote_port: int = 0,
 ) -> dict:
     """
     Phase 2 of the VPN handshake.
@@ -178,17 +206,30 @@ async def complete_handshake(
 
     # Step 1 — load session
     def _load():
-        session = _session_repo.get_by_id(db, session_uuid)
-        return session
+        _db = db or SessionLocal()
+        try:
+            session = _session_repo.get_by_id(_db, session_uuid)
+            if not session:
+                return None
+            return {
+                "client_id": session.client_id,
+                "kem_algorithm": session.kem_algorithm,
+                "pqc_key_id": session.pqc_key_id,
+                "kem_state": session.kem_state,
+                "kem_ciphertext": session.kem_ciphertext,
+            }
+        finally:
+            if not db:
+                _db.close()
 
-    session = await asyncio.to_thread(_load)
+    session_data = await asyncio.to_thread(_load)
 
-    if not session:
+    if not session_data:
         raise SessionNotFound(f"session_id '{session_id}' not found")
-    if session.kem_state not in (KEMState.PENDING,):
-        if session.kem_state == KEMState.ESTABLISHED:
+    if session_data["kem_state"] not in (KEMState.PENDING,):
+        if session_data["kem_state"] == KEMState.ESTABLISHED:
             aes_key = session_store.get(str(session_uuid))
-            if aes_key and session.kem_ciphertext == kem_ciphertext:
+            if aes_key and session_data["kem_ciphertext"] == kem_ciphertext:
                 logger.info(
                     "[HANDSHAKE] Duplicate handshake for established session=%s, returning cached AES key",
                     session_id,
@@ -198,36 +239,73 @@ async def complete_handshake(
                     "aes_key": aes_key,
                 }
         raise DuplicateHandshake(
-            f"session '{session_id}' is already in state '{session.kem_state}'"
+            f"session '{session_id}' is already in state '{session_data['kem_state']}'"
         )
 
     # Load client for key_id reference
     def _load_client():
-        return _client_repo.get_by_id(db, session.client_id)
+        _db = db or SessionLocal()
+        try:
+            client = _client_repo.get_by_id(_db, session_data["client_id"])
+            if not client:
+                return None
+            return client.pqc_key_id
+        finally:
+            if not db:
+                _db.close()
 
-    client = await asyncio.to_thread(_load_client)
-    if not client:
-        raise ClientNotRegistered(f"Client for session '{session_id}' not found")
+    client_pqc_key_id = await asyncio.to_thread(_load_client)
+    if client_pqc_key_id is None and session_data["client_id"] is not None:
+        def _check_client_exists():
+            _db = db or SessionLocal()
+            try:
+                return _client_repo.get_by_id(_db, session_data["client_id"]) is not None
+            finally:
+                if not db:
+                    _db.close()
+        exists = await asyncio.to_thread(_check_client_exists)
+        if not exists:
+            raise ClientNotRegistered(f"Client for session '{session_id}' not found")
 
-    key_id = session.pqc_key_id or client.pqc_key_id
+    key_id = session_data["pqc_key_id"] or client_pqc_key_id
     if not key_id:
         raise HandshakeError(f"No key_id reference found for session '{session_id}'")
 
     # Step 2 — decapsulate via PQC API
     try:
         shared_secret = await pqc_client.decapsulate(
-            session.kem_algorithm,
+            session_data["kem_algorithm"],
             kem_ciphertext,
             key_id,
         )
     except (PQCServiceUnavailable, PQCDecapsulationError):
         def _mark_failed():
-            _session_repo.update(db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
+            _db = db or SessionLocal()
+            try:
+                _session_repo.update(_db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
+                if not db:
+                    _db.commit()
+            except Exception:
+                if not db:
+                    _db.rollback()
+            finally:
+                if not db:
+                    _db.close()
         await asyncio.to_thread(_mark_failed)
         raise
     except Exception as exc:
         def _mark_failed():
-            _session_repo.update(db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
+            _db = db or SessionLocal()
+            try:
+                _session_repo.update(_db, session_uuid, {"kem_state": KEMState.FAILED, "tunnel_status": TunnelStatus.FAILED})
+                if not db:
+                    _db.commit()
+            except Exception:
+                if not db:
+                    _db.rollback()
+            finally:
+                if not db:
+                    _db.close()
         await asyncio.to_thread(_mark_failed)
         raise HandshakeError(f"Decapsulation error: {exc}") from exc
 
@@ -241,57 +319,79 @@ async def complete_handshake(
     now = datetime.now(timezone.utc)
 
     def _finalize():
-        # Update session ciphertext + state
-        _session_repo.update(db, session_uuid, {
-            "kem_ciphertext": kem_ciphertext,
-            "kem_state": KEMState.ESTABLISHED,
-            "tunnel_status": TunnelStatus.CONNECTING,
-            "established_at": now,
-        })
+        _db = db or SessionLocal()
+        try:
+            # Update session ciphertext + state
+            _session_repo.update(_db, session_uuid, {
+                "kem_ciphertext": kem_ciphertext,
+                "kem_state": KEMState.ESTABLISHED,
+                "tunnel_status": TunnelStatus.CONNECTING,
+                "established_at": now,
+            })
 
-        # Create TunnelState
-        _tunnel_state_repo.create(db, {
-            "id": uuid.uuid4(),
-            "session_id": session_uuid,
-            "status": TunnelStatus.CONNECTING,
-            "remote_ip": remote_ip,
-            "remote_port": remote_port,
-            "last_heartbeat": now,
-        })
+            # Create TunnelState
+            _tunnel_state_repo.create(_db, {
+                "id": uuid.uuid4(),
+                "session_id": session_uuid,
+                "status": TunnelStatus.CONNECTING,
+                "remote_ip": remote_ip,
+                "remote_port": remote_port,
+                "last_heartbeat": now,
+            })
 
-        # Create TrafficStat row
-        _traffic_stat_repo.create(db, {
-            "id": uuid.uuid4(),
-            "session_id": session_uuid,
-            "bytes_sent": 0,
-            "bytes_received": 0,
-            "packets_sent": 0,
-            "packets_received": 0,
-        })
+            # Create TrafficStat row
+            _traffic_stat_repo.create(_db, {
+                "id": uuid.uuid4(),
+                "session_id": session_uuid,
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "packets_sent": 0,
+                "packets_received": 0,
+            })
 
-        # Update client last_seen
-        _client_repo.update(db, session.client_id, {"last_seen": now})
+            # Update client last_seen
+            _client_repo.update(_db, session_data["client_id"], {"last_seen": now})
+            if not db:
+                _db.commit()
+        except Exception:
+            if not db:
+                _db.rollback()
+            raise
+        finally:
+            if not db:
+                _db.close()
 
     await asyncio.to_thread(_finalize)
 
     # Step 6 — audit event
     def _record_complete_event():
-        _event_repo.record(
-            db=db,
-            session_id=session_uuid,
-            event_type="HANDSHAKE_COMPLETE",
-            details={
-                "algorithm": session.kem_algorithm,
-                "remote_ip": remote_ip,
-                "remote_port": remote_port,
-            },
-        )
+        _db = db or SessionLocal()
+        try:
+            _event_repo.record(
+                db=_db,
+                session_id=session_uuid,
+                event_type="HANDSHAKE_COMPLETE",
+                details={
+                    "algorithm": session_data["kem_algorithm"],
+                    "remote_ip": remote_ip,
+                    "remote_port": remote_port,
+                },
+            )
+            if not db:
+                _db.commit()
+        except Exception:
+            if not db:
+                _db.rollback()
+            raise
+        finally:
+            if not db:
+                _db.close()
 
     await asyncio.to_thread(_record_complete_event)
 
     logger.info(
         "[HANDSHAKE] Complete: session=%s algorithm=%s remote=%s:%d aes_key_len=%d",
-        session_id, session.kem_algorithm, remote_ip, remote_port, len(aes_key),
+        session_id, session_data["kem_algorithm"], remote_ip, remote_port, len(aes_key),
     )
 
     return {
