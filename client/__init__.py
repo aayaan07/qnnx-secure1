@@ -1,1 +1,0 @@
-# QVPN Client package init
