@@ -23,6 +23,9 @@ Usage:
 
     # Explicitly remove on disconnect
     session_store.evict(session_id)
+
+    # Snapshot all live session IDs (for reconciliation — no keys exposed)
+    ids = session_store.active_session_ids()
 """
 from __future__ import annotations
 
@@ -86,6 +89,17 @@ class SessionKeyStore:
         """Return the current number of active keys in the store."""
         with self._lock:
             return len(self._cache)
+
+    def active_session_ids(self) -> list[str]:
+        """
+        Return a point-in-time snapshot of all session IDs currently held in the store.
+
+        Keys are NOT exposed — this is safe to pass to background tasks or logging.
+        The list is a copy; mutations to it do not affect the store.
+        Used by the reconciliation task to cross-check live memory state against the DB.
+        """
+        with self._lock:
+            return list(self._cache.keys())
 
     def __contains__(self, session_id: str) -> bool:
         with self._lock:

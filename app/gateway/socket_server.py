@@ -26,6 +26,14 @@ AES key lifecycle:
     - MASTER_KEY bytes are used directly as the AES-256 key.
     - session_store and database session validation are bypassed entirely.
     - Only for local testing — never use in production.
+
+Session resumption (data-plane hot path — normal mode):
+  session_store is the sole source of truth for whether a session may resume
+  a tunnel connection. The DB is NOT consulted per-connection. A key present
+  in session_store implies the session was validly established (complete_handshake
+  placed it there) and has not yet been deactivated (close_session /
+  expire_stale_sessions / TTL evict it). A periodic reconciliation task
+  cross-checks memory state against the DB and logs any drift it finds.
 """
 from __future__ import annotations
 
@@ -44,10 +52,12 @@ from app.core.exceptions import HandshakeError, AEADError, SessionNotEstablished
 from app.gateway.session_store import session_store
 from app.repositories.session_repo import SessionRepository
 from app.services.handshake_service import complete_handshake
-from app.services.session_service import close_session, expire_stale_sessions, is_session_resumable
+from app.services.session_service import close_session, expire_stale_sessions
 
 logger = logging.getLogger("qvpn.gateway")
 
+# Reconciliation uses the session repo to cross-check DB state against memory.
+# It is NOT used on the per-connection hot path.
 _session_repo = SessionRepository()
 
 HOST = "0.0.0.0"
@@ -219,16 +229,20 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
     Session resumption flow:
       1. Read session_id from wire.
-      2a. [Normal] Verify session in session_store + DB; reject if not established.
-      2b. [Debug]  Skip store/DB; use MASTER_KEY directly.
+      2a. [Normal] Validate UUID format (cheap, local). Look up AES key in
+          session_store (in-memory, zero network I/O). Reject if missing.
+      2b. [Debug]  Skip store entirely; use MASTER_KEY directly.
       3. Echo session_id back to signal readiness.
       4. Read encrypted target destination.
       5. Open TCP connection to target.
       6. Bi-directionally pipe encrypted traffic.
 
-    All cleanup (close writers, cancel pipe tasks, close DB session) executes
-    in the finally block regardless of which exception fires. Each cleanup step
-    is individually guarded so a failure in one does not skip the rest.
+    The DB is NOT consulted per-connection in normal mode. session_store is the
+    sole gatekeeper — see module docstring for the invariant that makes this safe.
+
+    All cleanup (close writers, cancel pipe tasks) executes in the finally block
+    regardless of which exception fires. Each cleanup step is individually guarded
+    so a failure in one does not skip the rest.
     """
     peer_addr = writer.get_extra_info("peername")
     logger.info("[GATEWAY] New connection from %s", peer_addr)
@@ -266,30 +280,34 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
         else:
             # ── NORMAL MODE ───────────────────────────────────────────────────
-            # Look up the session AES key in the in-memory store
+            # Step 1: Validate UUID format — cheap local check, no network I/O.
+            try:
+                uuid.UUID(session_id)
+            except ValueError:
+                logger.warning(
+                    "[GATEWAY] Session resumption rejected: malformed UUID session_id=%r from %s",
+                    session_id,
+                    peer_addr,
+                )
+                try:
+                    _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
+                    await writer.drain()
+                except Exception:
+                    pass
+                raise SessionNotEstablished(f"Invalid session_id format: {session_id!r}")
+
+            # Step 2: session_store is the sole gatekeeper for hot-path resumption.
+            # Keys are placed here only by complete_handshake() (post-ESTABLISHED)
+            # and are evicted by close_session(), expire_stale_sessions(), or TTL.
+            # No DB round-trip needed — see module docstring for the full invariant.
             aes_key = session_store.get(session_id)
 
-            # Query database to verify session exists and is in established state
-            def _verify_session():
-                db = SessionLocal()
-                try:
-                    session_uuid = uuid.UUID(session_id)
-                    session = _session_repo.get_by_id(db, session_uuid)
-                    return session is not None and is_session_resumable(session)
-                except ValueError:
-                    return False
-                finally:
-                    db.close()
-
-            session_valid = await asyncio.to_thread(_verify_session)
-
-            if not aes_key or not session_valid:
+            if not aes_key:
                 logger.warning(
-                    "[GATEWAY] Session resumption rejected: session=%s "
-                    "(key_found=%s, session_valid=%s)",
+                    "[GATEWAY] Session resumption rejected: no active key in session_store "
+                    "(session=%s from %s) — session may be expired, closed, or not yet established.",
                     session_id,
-                    bool(aes_key),
-                    session_valid,
+                    peer_addr,
                 )
                 try:
                     _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
@@ -460,17 +478,106 @@ async def _record_heartbeat(session_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Periodic reconciliation — session_store vs DB (off hot path)
+# ---------------------------------------------------------------------------
+
+
+async def _reconcile_session_store() -> None:
+    """
+    Cross-check session_store's live keys against the DB's session states.
+
+    For each session ID currently held in memory, query the DB (off-thread).
+    Log a WARNING if the DB shows the session as CLOSED, EXPIRED, or FAILED
+    while a key is still alive in memory — this indicates drift that should
+    not occur under normal operation.
+
+    If drift is found, also proactively evict the stale key to self-heal.
+    This does NOT block or affect the data-plane hot path.
+    """
+    live_ids = session_store.active_session_ids()
+    if not live_ids:
+        logger.debug("[RECONCILE] session_store is empty — nothing to reconcile.")
+        return
+
+    logger.debug("[RECONCILE] Checking %d live session(s) against DB.", len(live_ids))
+
+    INACTIVE_STATES = {"CLOSED", "EXPIRED", "FAILED"}
+
+    def _db_check():
+        db = SessionLocal()
+        mismatches = []
+        try:
+            for sid in live_ids:
+                try:
+                    session = _session_repo.get_by_id(db, sid)
+                    if session is None:
+                        mismatches.append((sid, "NOT_FOUND"))
+                    elif session.tunnel_status in INACTIVE_STATES or session.kem_state in INACTIVE_STATES:
+                        mismatches.append((sid, f"tunnel_status={session.tunnel_status} kem_state={session.kem_state}"))
+                except Exception as exc:
+                    logger.debug("[RECONCILE] Could not query session %s: %s", sid, exc)
+        finally:
+            db.close()
+        return mismatches
+
+    try:
+        mismatches = await asyncio.to_thread(_db_check)
+    except Exception as exc:
+        logger.error("[RECONCILE] DB check failed: %s", exc)
+        return
+
+    for sid, reason in mismatches:
+        logger.warning(
+            "[RECONCILE] Drift detected: session_store holds a live key for session=%s "
+            "but DB reports %s — evicting now.",
+            sid, reason,
+        )
+        session_store.evict(sid)
+
+    if not mismatches:
+        logger.debug("[RECONCILE] All %d live session(s) match DB state — no drift.", len(live_ids))
+
+
+async def _reconcile_loop() -> None:
+    """
+    Background loop that periodically calls _reconcile_session_store().
+
+    Interval: 5 × HEARTBEAT_TIMEOUT_SECONDS (or at least 60s).
+    This is intentionally slower than the expiry scan — it's a safety net,
+    not a critical path.
+    """
+    interval = max(60, settings.HEARTBEAT_TIMEOUT_SECONDS * 5)
+    logger.info("[RECONCILE] Reconciliation monitor started (interval=%ds)", interval)
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            await _reconcile_session_store()
+        except asyncio.CancelledError:
+            logger.info("[RECONCILE] Reconciliation task cancelled")
+            break
+        except Exception as exc:
+            logger.error("[RECONCILE] Unexpected error in reconciliation loop: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Server startup
 # ---------------------------------------------------------------------------
 
 
+_reconcile_task = None
+
+
 async def start_gateway_server():
     """
-    Start the raw TCP VPN socket server and the background session expiry task.
+    Start the raw TCP VPN socket server and background maintenance tasks.
+
+    Background tasks started:
+      - expire_stale_sessions(): marks timed-out sessions EXPIRED, evicts keys.
+      - _reconcile_loop(): periodically cross-checks session_store vs DB for drift.
 
     Returns the asyncio.Server object so the caller can manage its lifecycle.
     """
-    global _expiry_task
+    global _expiry_task, _reconcile_task
     server = await asyncio.start_server(handle_client, HOST, VPN_PORT)
     logger.info("[GATEWAY] TCP VPN server listening on %s:%d", HOST, VPN_PORT)
 
@@ -481,5 +588,8 @@ async def start_gateway_server():
     # Start background session expiry
     _expiry_task = asyncio.create_task(expire_stale_sessions())
     logger.info("[GATEWAY] Session expiry monitor started (interval=%ds)", settings.HEARTBEAT_TIMEOUT_SECONDS)
+
+    # Start background reconciliation (session_store vs DB drift detection)
+    _reconcile_task = asyncio.create_task(_reconcile_loop())
 
     return server
