@@ -140,7 +140,9 @@ async def _pipe_client_to_remote(
 
             # Forward decrypted traffic upstream
             remote_writer.write(raw_traffic)
-            await remote_writer.drain()
+            if remote_writer.transport.get_write_buffer_size() > 262144: 
+             await remote_writer.drain() 
+
 
             # Batch stats
             accumulated_bytes += len(raw_traffic)
@@ -194,7 +196,8 @@ async def _pipe_remote_to_client(
                 encrypted_payload = nonce + ciphertext
 
             _write_framed(client_writer, encrypted_payload)
-            await client_writer.drain()
+            if client_writer.transport.get_write_buffer_size() > 262144: 
+             await client_writer.drain() 
 
             accumulated_bytes += len(raw_traffic)
             accumulated_packets += 1
