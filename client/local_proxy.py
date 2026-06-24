@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - [LocalProxy] - %(l
 logger = logging.getLogger("Local_Proxy")
 
 PROXY_HOST = "127.0.0.1"
-PROXY_PORT = 8080
+PROXY_PORT = 10001
 QVPN_CLIENT_HOST = "127.0.0.1"
 QVPN_CLIENT_PORT = 8282
 

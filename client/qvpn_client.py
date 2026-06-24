@@ -182,7 +182,7 @@ class QVPNClient:
 
                     # Activate Windows system proxy AFTER the local server is ready
                     try:
-                        set_system_proxy("127.0.0.1:8080")
+                        set_system_proxy("127.0.0.1:10001")
                     except Exception as exc:
                         logger.error("Failed to set system proxy: %s", exc)
 
@@ -573,7 +573,7 @@ class QVPNClient:
                             payload = nonce + ciphertext
 
                         gw_writer.write(len(payload).to_bytes(4, byteorder="big") + payload)
-                        if len(payload) > 262144: 
+                        if gw_writer.transport.get_write_buffer_size() > 262144: 
                             await gw_writer.drain()
                         self.state.packets_sent += 1
                 except asyncio.CancelledError:
@@ -603,7 +603,8 @@ class QVPNClient:
                             decrypted = cipher.decrypt(nonce, ciphertext, None)
 
                         proxy_writer.write(decrypted)
-                        await proxy_writer.drain()
+                        if proxy_writer.transport.get_write_buffer_size() > 262144:
+                         await proxy_writer.drain()
                 except asyncio.CancelledError:
                     logger.debug("[conn=%s] gateway→proxy pipe cancelled.", conn_id)
                 except Exception as ex:
