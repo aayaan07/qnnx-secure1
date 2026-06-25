@@ -106,7 +106,7 @@ def close_session(db: DBSession, session_id: str, reason: str = "CLIENT_DISCONNE
         session_store.evict(session_id)
     except Exception as exc:
         cleanup_errors.append(f"session_store.evict: {exc}")
-        logger.error("[SESSION] close_session: CRITICAL — failed to evict AES key (session=%s): %s", session_id, exc)
+        logger.error("[SESSION] close_session: CRITICAL - failed to evict AES key (session=%s): %s", session_id, exc)
 
     # Step 4 — record audit event
     try:

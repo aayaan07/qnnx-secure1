@@ -24,10 +24,13 @@ class ApiKeyRepository:
 
     def update_last_used(self, db: Session, key_id: str) -> None:
         """Update the last_used_at timestamp for a given key_id."""
-        api_key = self.get_by_key_id(db, key_id)
-        if api_key:
-            api_key.last_used_at = datetime.now(timezone.utc)
-            db.commit()
+        from sqlalchemy import update as _update
+        db.execute(
+            _update(ApiKey)
+            .where(ApiKey.key_id == key_id)
+            .values(last_used_at=datetime.now(timezone.utc))
+        )
+        db.commit()
 
     def _insert(self, db: Session, api_key_data: dict) -> ApiKey:
         """

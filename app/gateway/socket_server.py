@@ -109,7 +109,6 @@ async def _pipe_client_to_remote(
     cipher: AESGCM,
     session_id: str,
 ) -> None:
-    logger.info("[PIPE_CLOSED] upstream | session=%s", session_id)
     """Decrypt client-side encrypted traffic and forward it to the remote server."""
     accumulated_bytes = 0
     accumulated_packets = 0
@@ -121,53 +120,56 @@ async def _pipe_client_to_remote(
             length = int.from_bytes(length_bytes, byteorder="big")
             encrypted_payload = await client_reader.readexactly(length)
 
-            if settings.DEBUG_AES:
-                raw_traffic = encrypted_payload
-            else:
-                # AES-GCM decrypt: nonce is first 12 bytes
-                nonce = encrypted_payload[:12]
-                ciphertext = encrypted_payload[12:]
-                try:
-                    raw_traffic = cipher.decrypt(nonce, ciphertext, None)
-                except InvalidTag:
-                    logger.error(
-                     "[CRYPTO_FAIL] AES_GCM_AUTH_FAILED | session=%s | reason=key_mismatch_or_replay",
-                        "dropping connection (possible key mismatch or replay attack).",
-                        session_id,
-                    )
-                    break
+            # AES-GCM decrypt: nonce is first 12 bytes
+            nonce = encrypted_payload[:12]
+            ciphertext = encrypted_payload[12:]
+            try:
+                raw_traffic = cipher.decrypt(nonce, ciphertext, None)
+            except InvalidTag:
+                logger.error(
+                    "[CRYPTO_FAIL] AES_GCM_AUTH_FAILED | session=%s | reason=key_mismatch_or_replay",
+                    session_id,
+                )
+                break
 
-            # Heartbeat control packet
+            # Heartbeat control packet — fire-and-forget DB write, don't stall pipe
             if raw_traffic == b"ping":
-                logger.info("[HEARTBEAT] PING_RECEIVED | session=%s", session_id)
-                await _record_heartbeat(session_id)
+                logger.debug("[HEARTBEAT] PING_RECEIVED | session=%s", session_id)
+                asyncio.create_task(_record_heartbeat(session_id))
                 continue
 
             # Forward decrypted traffic upstream
             remote_writer.write(raw_traffic)
-            if remote_writer.transport.get_write_buffer_size() > 262144: 
-             await remote_writer.drain() 
+            if remote_writer.transport.get_write_buffer_size() > 262144:
+                await remote_writer.drain()
 
-
-            # Batch stats
+            # Batch stats — fire-and-forget every 100 packets, never stall the pipe
             accumulated_bytes += len(raw_traffic)
             accumulated_packets += 1
-            if accumulated_packets % 10 == 0:
-                await _flush_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
+            if accumulated_packets % 100 == 0:
+                asyncio.create_task(_flush_stats(
+                    session_id,
+                    bytes_sent=accumulated_bytes,
+                    packets_sent=accumulated_packets,
+                ))
                 accumulated_bytes = accumulated_packets = 0
 
     except asyncio.CancelledError:
         logger.debug("[TUNNEL] Upstream pipe cancelled (session=%s)", session_id)
-        raise  # allow gather/task cancellation to propagate
+        raise
     except (asyncio.IncompleteReadError, ConnectionError, OSError):
-        logger.warning("[LIFECYCLE] CLIENT_DISCONNECT | session=%s", session_id)
+        logger.info("[LIFECYCLE] CLIENT_DISCONNECT | session=%s", session_id)
     except Exception as exc:
         logger.error("[TUNNEL] Upstream error for session=%s: %s", session_id, exc)
     finally:
         await _safe_close(remote_writer, f"remote_writer[{session_id}]")
         if accumulated_packets > 0 or accumulated_bytes > 0:
             try:
-                await _flush_stats(session_id, bytes_sent=accumulated_bytes, packets_sent=accumulated_packets)
+                asyncio.create_task(_flush_stats(
+                    session_id,
+                    bytes_sent=accumulated_bytes,
+                    packets_sent=accumulated_packets,
+                ))
             except Exception:
                 pass
 
@@ -183,46 +185,64 @@ async def _pipe_remote_to_client(
     cipher: AESGCM,
     session_id: str,
 ) -> None:
-    logger.info("[PIPE_CLOSED] downstream | session=%s", session_id)
     """Read raw internet traffic, encrypt it, and forward it to the VPN client."""
     accumulated_bytes = 0
     accumulated_packets = 0
 
+    # Pre-generate a pool of nonces to avoid a syscall on every single packet.
+    # Refilled when empty. os.urandom is the bottleneck on high-packet paths.
+    _NONCE_POOL_SIZE = 64
+    nonce_pool: list[bytes] = []
+
+    def _refill_nonces() -> None:
+        blob = os.urandom(12 * _NONCE_POOL_SIZE)
+        nonce_pool.extend(blob[i * 12:(i + 1) * 12] for i in range(_NONCE_POOL_SIZE))
+
+    _refill_nonces()
+
     try:
         while True:
-            raw_traffic = await remote_reader.read(65536)
+            raw_traffic = await remote_reader.read(131072)
             if not raw_traffic:
                 break  # Remote closed connection
 
-            if settings.DEBUG_AES:
-                encrypted_payload = raw_traffic
-            else:
-                nonce = os.urandom(12)
-                ciphertext = cipher.encrypt(nonce, raw_traffic, None)
-                encrypted_payload = nonce + ciphertext
+            if not nonce_pool:
+                _refill_nonces()
+            nonce = nonce_pool.pop()
+
+            ciphertext = cipher.encrypt(nonce, raw_traffic, None)
+            encrypted_payload = nonce + ciphertext
 
             _write_framed(client_writer, encrypted_payload)
-            if client_writer.transport.get_write_buffer_size() > 262144: 
-             await client_writer.drain() 
+            if client_writer.transport.get_write_buffer_size() > 262144:
+                await client_writer.drain()
 
             accumulated_bytes += len(raw_traffic)
             accumulated_packets += 1
-            if accumulated_packets % 10 == 0:
-                await _flush_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
+            if accumulated_packets % 100 == 0:
+                asyncio.create_task(_flush_stats(
+                    session_id,
+                    bytes_received=accumulated_bytes,
+                    packets_received=accumulated_packets,
+                ))
                 accumulated_bytes = accumulated_packets = 0
 
     except asyncio.CancelledError:
         logger.debug("[TUNNEL] Downstream pipe cancelled (session=%s)", session_id)
-        raise  # allow gather/task cancellation to propagate
+        raise
     except (ConnectionError, OSError):
-        logger.warning("[LIFECYCLE] REMOTE_DISCONNECT | session=%s", session_id)
+        logger.info("[LIFECYCLE] REMOTE_DISCONNECT | session=%s", session_id)
     except Exception as exc:
         logger.error("[TUNNEL] Downstream error for session=%s: %s", session_id, exc)
     finally:
         await _safe_close(client_writer, f"client_writer[{session_id}]")
         if accumulated_packets > 0 or accumulated_bytes > 0:
             try:
-                await _flush_stats(session_id, bytes_received=accumulated_bytes, packets_received=accumulated_packets)
+                asyncio.create_task(_flush_stats(
+                    session_id,
+                    bytes_received=accumulated_bytes,
+                    packets_received=accumulated_packets,
+                ))
             except Exception:
                 pass
 
@@ -274,66 +294,51 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         session_id = session_id_bytes.decode("utf-8")
         logger.info("[LIFECYCLE] SESSION_RESUME | session_id=%s | peer=%s", session_id, peer_addr)
 
-        if settings.DEBUG_MODE_PQC:
-            # ── DEBUG MODE ────────────────────────────────────────────────────
-            # Skip session_store and DB entirely. Use MASTER_KEY as the AES key.
-            # Accept any session_id without validation.
-            aes_key = settings.master_key_bytes
+        # Step 1: Validate UUID format — cheap local check, no network I/O.
+        try:
+            uuid.UUID(session_id)
+        except ValueError:
             logger.warning(
-                "[GATEWAY][DEBUG] PQC debug mode: accepting session=%s without store/DB validation.",
+                "[GATEWAY] Session resumption rejected: malformed UUID session_id=%r from %s",
                 session_id,
+                peer_addr,
             )
-            # Echo session_id back so the client proceeds to the traffic phase
-            _write_framed(writer, session_id.encode("utf-8"))
-            await writer.drain()
-
-        else:
-            # ── NORMAL MODE ───────────────────────────────────────────────────
-            # Step 1: Validate UUID format — cheap local check, no network I/O.
             try:
-                uuid.UUID(session_id)
-            except ValueError:
-                logger.warning(
-                    "[GATEWAY] Session resumption rejected: malformed UUID session_id=%r from %s",
-                    session_id,
-                    peer_addr,
-                )
-                try:
-                    _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
-                    await writer.drain()
-                except Exception:
-                    pass
-                raise SessionNotEstablished(f"Invalid session_id format: {session_id!r}")
+                _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
+                await writer.drain()
+            except Exception:
+                pass
+            raise SessionNotEstablished(f"Invalid session_id format: {session_id!r}")
 
-            # Step 2: session_store is the sole gatekeeper for hot-path resumption.
-            # Keys are placed here only by complete_handshake() (post-ESTABLISHED)
-            # and are evicted by close_session(), expire_stale_sessions(), or TTL.
-            # No DB round-trip needed — see module docstring for the full invariant.
-            aes_key = session_store.get(session_id)
+        # Step 2: session_store is the sole gatekeeper for hot-path resumption.
+        # Keys are placed here only by complete_handshake() (post-ESTABLISHED)
+        # and are evicted by close_session(), expire_stale_sessions(), or TTL.
+        # No DB round-trip needed — see module docstring for the full invariant.
+        aes_key = session_store.get(session_id)
 
-            if not aes_key:
-                logger.warning(
-                    "[GATEWAY] Session resumption rejected: no active key in session_store "
-                    "(session=%s from %s) — session may be expired, closed, or not yet established.",
-                    session_id,
-                    peer_addr,
-                )
-                try:
-                    _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
-                    await writer.drain()
-                except Exception:
-                    pass
-                raise SessionNotEstablished(f"Session '{session_id}' is not in an established/active state")
-
-            logger.info(
-                "[GATEWAY] Session established: session_id=%s (AES key=%d bytes)",
+        if not aes_key:
+            logger.warning(
+                "[GATEWAY] Session resumption rejected: no active key in session_store "
+                "(session=%s from %s) — session may be expired, closed, or not yet established.",
                 session_id,
-                len(aes_key),
+                peer_addr,
             )
+            try:
+                _write_framed(writer, b"SESSION_NOT_ESTABLISHED")
+                await writer.drain()
+            except Exception:
+                pass
+            raise SessionNotEstablished(f"Session '{session_id}' is not in an established/active state")
 
-            # Echo session_id to signal the client the session is ready
-            _write_framed(writer, session_id.encode("utf-8"))
-            await writer.drain()
+        logger.info(
+            "[GATEWAY] Session established: session_id=%s (AES key=%d bytes)",
+            session_id,
+            len(aes_key),
+        )
+
+        # Echo session_id to signal the client the session is ready
+        _write_framed(writer, session_id.encode("utf-8"))
+        await writer.drain()
 
         # ── TRAFFIC PHASE ─────────────────────────────────────────────────────
 
@@ -342,18 +347,15 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
         # Read target destination (host + port)
         encrypted_target = await _read_framed(reader)
-        if settings.DEBUG_AES:
-            target_json = encrypted_target.decode("utf-8")
-        else:
-            target_nonce = encrypted_target[:12]
-            target_ciphertext = encrypted_target[12:]
-            try:
-                target_json = cipher.decrypt(target_nonce, target_ciphertext, None).decode("utf-8")
-            except InvalidTag:
-                raise AEADError(
-                    f"AES-GCM auth failure decrypting target for session={session_id}. "
-                    "Key mismatch between client and gateway?"
-                )
+        target_nonce = encrypted_target[:12]
+        target_ciphertext = encrypted_target[12:]
+        try:
+            target_json = cipher.decrypt(target_nonce, target_ciphertext, None).decode("utf-8")
+        except InvalidTag:
+            raise AEADError(
+                f"AES-GCM auth failure decrypting target for session={session_id}. "
+                "Key mismatch between client and gateway?"
+            )
 
         target_data = json.loads(target_json)
         target_host = target_data["host"]
@@ -378,7 +380,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             name=f"downstream-{session_id}",
         )
 
-        logger.info("[GATEWAY] Bidirectional pipe active: session=%s → %s:%d", session_id, target_host, target_port)
+        logger.info("[GATEWAY] Bidirectional pipe active: session=%s -> %s:%d", session_id, target_host, target_port)
         await asyncio.gather(upstream, downstream)
         logger.info("[GATEWAY] Bidirectional pipe closed: session=%s", session_id)
 
@@ -507,7 +509,7 @@ async def _reconcile_session_store() -> None:
     """
     live_ids = session_store.active_session_ids()
     if not live_ids:
-        logger.debug("[RECONCILE] session_store is empty — nothing to reconcile.")
+        logger.debug("[RECONCILE] session_store is empty - nothing to reconcile.")
         return
 
     logger.debug("[RECONCILE] Checking %d live session(s) against DB.", len(live_ids))
@@ -546,7 +548,7 @@ async def _reconcile_session_store() -> None:
         session_store.evict(sid)
 
     if not mismatches:
-        logger.debug("[RECONCILE] All %d live session(s) match DB state — no drift.", len(live_ids))
+        logger.debug("[RECONCILE] All %d live session(s) match DB state - no drift.", len(live_ids))
 
 
 async def _reconcile_loop() -> None:
@@ -589,12 +591,13 @@ async def start_gateway_server():
     Returns the asyncio.Server object so the caller can manage its lifecycle.
     """
     global _expiry_task, _reconcile_task
-    server = await asyncio.start_server(handle_client, HOST, VPN_PORT)
+    server = await asyncio.start_server(
+        handle_client,
+        HOST,
+        VPN_PORT,
+        limit=262144,  # 256 KB stream reader buffer (default 64 KB is too small for VPN throughput)
+    )
     logger.info("[GATEWAY] TCP VPN server listening on %s:%d", HOST, VPN_PORT)
-
-    if settings.DEBUG_MODE_PQC:
-        logger.warning("[GATEWAY] DEBUG MODE: session_store and DB validation are DISABLED.")
-        logger.warning("[GATEWAY] DEBUG MODE: MASTER_KEY (%d bytes) in use.", len(settings.master_key_bytes))
 
     # Start background session expiry
     _expiry_task = asyncio.create_task(expire_stale_sessions())

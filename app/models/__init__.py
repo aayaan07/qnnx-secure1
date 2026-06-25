@@ -10,6 +10,8 @@ from app.models.user_activity import UserActivity
 from app.models.network_activity import NetworkActivity
 from app.models.process_event import ProcessEvent
 from app.models.device_event import DeviceEvent
+from app.models.qvpn_alert import QVPNAlert
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "Client",
@@ -24,4 +26,6 @@ __all__ = [
     "NetworkActivity",
     "ProcessEvent",
     "DeviceEvent",
+    "QVPNAlert",
+    "AuditLog",
 ]

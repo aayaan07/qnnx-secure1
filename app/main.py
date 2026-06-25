@@ -1,14 +1,20 @@
 """
 main.py — QVPN Gateway Control Plane entry point.
 
-Starts:
-  1. FastAPI HTTP control plane (this process, port 8001 by default)
-  2. Raw TCP VPN socket server (port 5151, launched in lifespan)
+HTTP control plane routes (port 8001):
+  /api/v1/handshake/*          — Two-phase PQC KEM handshake
+  /api/v1/sessions/*           — Session lifecycle + heartbeats + stats
+  /api/v1/agent/*              — Monitoring agent data ingestion
+  /api/v1/alerts               — Security alerts (ingest + management)
+  /api/v1/clients/{id}/alerts  — Per-client alert queries
+  /api/v1/audit                — Audit log queries (every request is logged)
 
-Routes:
-  /api/v1/handshake/*  — Two-phase KEM handshake (init + complete)
-  /api/v1/sessions/*   — Session lifecycle management
-  /api/v1/monitoring/* — System metrics and monitoring (existing)
+VPN data plane:
+  Raw TCP socket server (port 5151) — launched in lifespan context manager
+
+Middleware:
+  AuditLogMiddleware — writes one audit_logs row per HTTP request,
+  after the response is dispatched (non-blocking background thread).
 """
 import logging
 from contextlib import asynccontextmanager
@@ -18,8 +24,11 @@ from fastapi import FastAPI, Depends
 from app.core.auth import get_api_key
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
+from app.core.middleware import AuditLogMiddleware
 from app.gateway.socket_server import start_gateway_server
 from app.routes.agent import router as agent_router
+from app.routes.alerts import router as alerts_router
+from app.routes.audit import router as audit_router
 from app.routes.handshake import router as handshake_router
 from app.routes.sessions import router as sessions_router
 
@@ -31,9 +40,8 @@ logger = logging.getLogger("qvpn.main")
 
 
 # ---------------------------------------------------------------------------
-# Lifespan — start/stop the raw TCP VPN socket server
+# Lifespan
 # ---------------------------------------------------------------------------
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,29 +50,18 @@ async def lifespan(app: FastAPI):
     gateway_server = await start_gateway_server()
     app.state.gateway_server = gateway_server
 
-    if settings.DEBUG_MODE_PQC:
-        logger.warning("=" * 60)
-        logger.warning("[MAIN] ⚠  PQC DEBUG MODE IS ENABLED")
-        logger.warning("[MAIN] ⚠  PQC key exchange is BYPASSED on this gateway.")
-        logger.warning("[MAIN] ⚠  MASTER_KEY is used for all AES-GCM operations.")
-        logger.warning("[MAIN] ⚠  DO NOT run this configuration in production.")
-        logger.warning("=" * 60)
-
-    logger.info("[MAIN] Gateway ready. HTTP control plane: /docs | VPN tunnel: port 5151")
+    logger.info("[MAIN] Gateway ready. HTTP: /docs | VPN tunnel: port 5151")
     yield
 
-    # Shutdown
     import asyncio
     logger.info("[MAIN] Shutting down gateway...")
     gateway_server.close()
 
     from app.gateway.socket_server import _expiry_task, _active_tasks
     if _expiry_task and not _expiry_task.done():
-        logger.info("[MAIN] Cancelling session expiry monitor task...")
         _expiry_task.cancel()
 
     if _active_tasks:
-        logger.info("[MAIN] Cancelling %d active connection task(s)...", len(_active_tasks))
         for task in list(_active_tasks):
             if not task.done():
                 task.cancel()
@@ -78,7 +75,6 @@ async def lifespan(app: FastAPI):
 # App
 # ---------------------------------------------------------------------------
 
-
 app = FastAPI(
     title="QVPN Gateway Control Plane",
     version=settings.VERSION,
@@ -88,38 +84,33 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Register domain exception → HTTP response handlers
+# Middleware — runs on every request, writes audit_logs row in background
+app.add_middleware(AuditLogMiddleware)
+
+# Domain exception → structured JSON response handlers
 register_exception_handlers(app)
 
-app.include_router(
-    handshake_router,
-    prefix=settings.API_V1_STR,
-    dependencies=[Depends(get_api_key)],
-)
-app.include_router(
-    sessions_router,
-    prefix=settings.API_V1_STR,
-    dependencies=[Depends(get_api_key)],
-)
-app.include_router(
-    agent_router,
-    prefix=settings.API_V1_STR,
-    dependencies=[Depends(get_api_key)],
-)
+# All API routes require a valid X-API-Key (enforced at router level)
+_auth = [Depends(get_api_key)]
+
+app.include_router(handshake_router, prefix=settings.API_V1_STR, dependencies=_auth)
+app.include_router(sessions_router,  prefix=settings.API_V1_STR, dependencies=_auth)
+app.include_router(agent_router,     prefix=settings.API_V1_STR, dependencies=_auth)
+app.include_router(alerts_router,    prefix=settings.API_V1_STR, dependencies=_auth)
+app.include_router(audit_router,     prefix=settings.API_V1_STR, dependencies=_auth)
 
 
 # ---------------------------------------------------------------------------
-# Root
+# Root / health
 # ---------------------------------------------------------------------------
-
 
 @app.get("/", include_in_schema=False)
 def root():
     return {
-        "service": "QVPN Gateway Control Plane",
-        "version": settings.VERSION,
-        "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
+        "service":         "QVPN Gateway Control Plane",
+        "version":         settings.VERSION,
+        "environment":     settings.ENVIRONMENT,
+        "docs":            "/docs",
         "vpn_tunnel_port": 5151,
     }
 
@@ -128,6 +119,6 @@ def root():
 def health():
     from app.gateway.session_store import session_store
     return {
-        "status": "ok",
+        "status":                    "ok",
         "active_sessions_in_memory": session_store.size(),
     }
