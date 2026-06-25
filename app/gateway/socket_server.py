@@ -39,9 +39,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 import uuid
+import time
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -53,8 +53,12 @@ from app.gateway.session_store import session_store
 from app.repositories.session_repo import SessionRepository
 from app.services.handshake_service import complete_handshake
 from app.services.session_service import close_session, expire_stale_sessions
+from app.core.logger import get_logger
 
-logger = logging.getLogger("qvpn.gateway")
+logger = get_logger(
+    "gateway",
+    "logs/gateway.log"
+)
 
 # Reconciliation uses the session repo to cross-check DB state against memory.
 # It is NOT used on the per-connection hot path.
@@ -105,6 +109,7 @@ async def _pipe_client_to_remote(
     cipher: AESGCM,
     session_id: str,
 ) -> None:
+    logger.info("[PIPE_CLOSED] upstream | session=%s", session_id)
     """Decrypt client-side encrypted traffic and forward it to the remote server."""
     accumulated_bytes = 0
     accumulated_packets = 0
@@ -126,7 +131,7 @@ async def _pipe_client_to_remote(
                     raw_traffic = cipher.decrypt(nonce, ciphertext, None)
                 except InvalidTag:
                     logger.error(
-                        "[TUNNEL] AES-GCM auth failure (upstream session=%s) — "
+                     "[CRYPTO_FAIL] AES_GCM_AUTH_FAILED | session=%s | reason=key_mismatch_or_replay",
                         "dropping connection (possible key mismatch or replay attack).",
                         session_id,
                     )
@@ -134,7 +139,7 @@ async def _pipe_client_to_remote(
 
             # Heartbeat control packet
             if raw_traffic == b"ping":
-                logger.debug("[TUNNEL] Heartbeat (ping) for session=%s", session_id)
+                logger.info("[HEARTBEAT] PING_RECEIVED | session=%s", session_id)
                 await _record_heartbeat(session_id)
                 continue
 
@@ -155,7 +160,7 @@ async def _pipe_client_to_remote(
         logger.debug("[TUNNEL] Upstream pipe cancelled (session=%s)", session_id)
         raise  # allow gather/task cancellation to propagate
     except (asyncio.IncompleteReadError, ConnectionError, OSError):
-        logger.info("[TUNNEL] Client disconnected upstream (session=%s)", session_id)
+        logger.warning("[LIFECYCLE] CLIENT_DISCONNECT | session=%s", session_id)
     except Exception as exc:
         logger.error("[TUNNEL] Upstream error for session=%s: %s", session_id, exc)
     finally:
@@ -178,6 +183,7 @@ async def _pipe_remote_to_client(
     cipher: AESGCM,
     session_id: str,
 ) -> None:
+    logger.info("[PIPE_CLOSED] downstream | session=%s", session_id)
     """Read raw internet traffic, encrypt it, and forward it to the VPN client."""
     accumulated_bytes = 0
     accumulated_packets = 0
@@ -209,7 +215,7 @@ async def _pipe_remote_to_client(
         logger.debug("[TUNNEL] Downstream pipe cancelled (session=%s)", session_id)
         raise  # allow gather/task cancellation to propagate
     except (ConnectionError, OSError):
-        logger.info("[TUNNEL] Remote disconnected downstream (session=%s)", session_id)
+        logger.warning("[LIFECYCLE] REMOTE_DISCONNECT | session=%s", session_id)
     except Exception as exc:
         logger.error("[TUNNEL] Downstream error for session=%s: %s", session_id, exc)
     finally:
@@ -248,7 +254,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     so a failure in one does not skip the rest.
     """
     peer_addr = writer.get_extra_info("peername")
-    logger.info("[GATEWAY] New connection from %s", peer_addr)
+    logger.info("[LIFECYCLE] CONNECTION_NEW | peer=%s", peer_addr)
 
     remote_ip = peer_addr[0] if peer_addr else "unknown"
     remote_port = peer_addr[1] if peer_addr else 0
@@ -266,7 +272,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
         session_id_bytes = await _read_framed(reader)
         session_id = session_id_bytes.decode("utf-8")
-        logger.info("[GATEWAY] Session resumption request: session_id=%s from %s", session_id, peer_addr)
+        logger.info("[LIFECYCLE] SESSION_RESUME | session_id=%s | peer=%s", session_id, peer_addr)
 
         if settings.DEBUG_MODE_PQC:
             # ── DEBUG MODE ────────────────────────────────────────────────────
@@ -359,7 +365,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         )
 
         remote_reader, remote_writer = await asyncio.open_connection(target_host, target_port)
-        logger.info("[GATEWAY] Connected to %s:%d (session=%s)", target_host, target_port, session_id)
+        logger.info("[LIFECYCLE] PIPE_START | session=%s | target=%s:%d", session_id, target_host, target_port)
 
         # Bi-directional traffic forwarding — both pipes run concurrently.
         # Tasks are tracked so we can cancel them if the handler exits unexpectedly.
@@ -466,6 +472,8 @@ async def _flush_stats(
 
 
 async def _record_heartbeat(session_id: str) -> None:
+    session_store.last_seen[session_id] = time.time()
+    logger.debug("[HEARTBEAT] RECEIVED | session=%s", session_id)
     def _db_work():
         db = SessionLocal()
         try:
