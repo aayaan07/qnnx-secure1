@@ -3,355 +3,681 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QVPN Quantum Secured</title>
+    <title>QVPN — Quantum Secured</title>
     <script type="text/javascript" src="/eel.js"></script>
     <style>
         :root {
-            --bg-ultra-dark: #000000;
-            --bg-dark: #0a0a0a;
-            --panel-bg: #111111;
-            --text-main: #fcfcfc;
-            --text-muted: #888888;
-            --accent-purple: #9333ea;
-            --status-green: #10b981;
-            --status-red: #ef4444;
-            --button-size: 200px;
+            --bg:           #080b12;
+            --surface:      #0f1420;
+            --surface-2:    #161c2d;
+            --border:       rgba(255,255,255,0.07);
+            --text:         #e8eaf0;
+            --text-muted:   #5a6278;
+            --text-dim:     #8b93a8;
+
+            --purple:       #7c3aed;
+            --purple-glow:  rgba(124, 58, 237, 0.35);
+            --purple-soft:  rgba(124, 58, 237, 0.12);
+
+            --green:        #10b981;
+            --green-glow:   rgba(16, 185, 129, 0.35);
+            --green-soft:   rgba(16, 185, 129, 0.1);
+
+            --amber:        #f59e0b;
+            --amber-glow:   rgba(245, 158, 11, 0.35);
+            --amber-soft:   rgba(245, 158, 11, 0.1);
+
+            --red:          #ef4444;
+            --red-glow:     rgba(239, 68, 68, 0.35);
+            --red-soft:     rgba(239, 68, 68, 0.1);
         }
 
-        * {
+        *, *::before, *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        body {
-            background-color: var(--bg-ultra-dark);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
             overflow: hidden;
         }
 
-        .top-section {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        /* ── Layout ── */
+        .app {
+            height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
         }
 
-        .circular-btn {
-            width: var(--button-size);
-            height: var(--button-size);
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--text);
+        }
+
+        .logo-text span {
+            color: var(--purple);
+        }
+
+        .header-badge {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 3px 10px;
+            text-transform: uppercase;
+        }
+
+        /* ── Main ── */
+        .main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 36px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        /* ── Connection button ── */
+        .btn-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Outer animated ring */
+        .btn-ring {
+            position: absolute;
+            width: 180px;
+            height: 180px;
             border-radius: 50%;
-            background-color: var(--bg-dark);
-            border: 4px solid var(--accent-purple);
-            box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+            border: 2px solid transparent;
+            transition: border-color 0.4s, box-shadow 0.4s;
+            pointer-events: none;
+        }
+
+        /* Second, slower ring */
+        .btn-ring-2 {
+            position: absolute;
+            width: 204px;
+            height: 204px;
+            border-radius: 50%;
+            border: 1px solid transparent;
+            transition: border-color 0.4s, box-shadow 0.4s;
+            pointer-events: none;
+        }
+
+        .power-btn {
+            position: relative;
+            z-index: 1;
+            width: 156px;
+            height: 156px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: none;
             cursor: pointer;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .circular-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(147, 51, 234, 0.7);
-        }
-
-        .circular-btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn-text-main {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--text-main);
-        }
-
-        .btn-text-status {
-            font-size: 14px;
-            color: var(--accent-purple);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 5px;
-        }
-
-        .circular-btn.connected {
-            border-color: var(--status-green);
-            box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
-        }
-
-        .circular-btn.connected .btn-text-status {
-            color: var(--status-green);
-        }
-
-        .bottom-section {
-            flex: 1;
-            background-color: var(--panel-bg);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 40px;
+            gap: 6px;
+            transition: transform 0.2s, background 0.4s;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .stats-dashboard {
-            width: 100%;
-            max-width: 800px;
+        .power-btn:hover {
+            transform: scale(1.04);
         }
 
-        .dashboard-header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: var(--accent-purple);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 16px;
-            font-weight: bold;
+        .power-btn:active {
+            transform: scale(0.97);
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr); /* Expanded to 5 columns */
-            gap: 15px;
-        }
-
-        .stat-card {
-            background-color: rgba(255, 255, 255, 0.02);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid transparent;
-            transition: border-color 0.3s ease;
-        }
-
-        .stat-title {
-            font-size: 12px;
+        .power-icon {
+            width: 40px;
+            height: 40px;
+            transition: color 0.4s;
             color: var(--text-muted);
+        }
+
+        .btn-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
+            color: var(--text-muted);
+            transition: color 0.4s;
         }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: bold;
-            font-family: monospace;
-            color: var(--text-main);
+        /* ── Button states ── */
+
+        /* disconnected — default, purple ring */
+        .app[data-state="disconnected"] .btn-ring {
+            border-color: rgba(124,58,237,0.25);
+        }
+        .app[data-state="disconnected"] .btn-ring-2 {
+            border-color: rgba(124,58,237,0.1);
+        }
+        .app[data-state="disconnected"] .power-icon { color: var(--purple); }
+        .app[data-state="disconnected"] .btn-label  { color: var(--purple); }
+
+        /* connecting — amber pulsing */
+        .app[data-state="connecting"] .btn-ring {
+            border-color: var(--amber);
+            box-shadow: 0 0 0 0 var(--amber-glow);
+            animation: ring-pulse-amber 1.4s ease-out infinite;
+        }
+        .app[data-state="connecting"] .btn-ring-2 {
+            border-color: rgba(245,158,11,0.15);
+            animation: ring-pulse-amber-2 1.4s ease-out infinite;
+        }
+        .app[data-state="connecting"] .power-icon { color: var(--amber); }
+        .app[data-state="connecting"] .btn-label  { color: var(--amber); }
+        .app[data-state="connecting"] .power-btn  { cursor: default; }
+
+        /* active — green */
+        .app[data-state="active"] .btn-ring {
+            border-color: var(--green);
+            box-shadow: 0 0 28px var(--green-glow);
+        }
+        .app[data-state="active"] .btn-ring-2 {
+            border-color: rgba(16,185,129,0.2);
+            box-shadow: 0 0 48px var(--green-glow);
+        }
+        .app[data-state="active"] .power-btn {
+            background: var(--green-soft);
+        }
+        .app[data-state="active"] .power-icon { color: var(--green); }
+        .app[data-state="active"] .btn-label  { color: var(--green); }
+
+        /* disconnecting — amber, no pulse */
+        .app[data-state="disconnecting"] .btn-ring {
+            border-color: var(--amber);
+            box-shadow: 0 0 20px var(--amber-glow);
+            animation: ring-pulse-amber 1.4s ease-out infinite;
+        }
+        .app[data-state="disconnecting"] .btn-ring-2 {
+            border-color: rgba(245,158,11,0.15);
+        }
+        .app[data-state="disconnecting"] .power-icon { color: var(--amber); }
+        .app[data-state="disconnecting"] .btn-label  { color: var(--amber); }
+        .app[data-state="disconnecting"] .power-btn  { cursor: default; }
+
+        /* error — red */
+        .app[data-state="error"] .btn-ring {
+            border-color: var(--red);
+            box-shadow: 0 0 24px var(--red-glow);
+        }
+        .app[data-state="error"] .btn-ring-2 {
+            border-color: rgba(239,68,68,0.15);
+        }
+        .app[data-state="error"] .power-btn {
+            background: var(--red-soft);
+        }
+        .app[data-state="error"] .power-icon { color: var(--red); }
+        .app[data-state="error"] .btn-label  { color: var(--red); }
+
+        @keyframes ring-pulse-amber {
+            0%   { box-shadow: 0 0 0  0   var(--amber-glow); }
+            60%  { box-shadow: 0 0 24px 8px var(--amber-glow); }
+            100% { box-shadow: 0 0 0  0   var(--amber-glow); }
+        }
+        @keyframes ring-pulse-amber-2 {
+            0%   { transform: scale(1);    opacity: 0.4; }
+            60%  { transform: scale(1.05); opacity: 0.15; }
+            100% { transform: scale(1);    opacity: 0.4; }
         }
 
-        /* Heartbeat Pulse Animation */
-        .pulse {
-            animation: pulse-animation 1s ease-out;
-            color: var(--status-green) !important;
-        }
-
-        @keyframes pulse-animation {
-            0% { transform: scale(1); text-shadow: none; }
-            50% { transform: scale(1.1); text-shadow: 0 0 15px var(--status-green); }
-            100% { transform: scale(1); text-shadow: none; }
-        }
-
-        .circular-btn.connecting {
-            border-color: #fbbf24;
-            box-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
-            animation: connecting-glow 1.5s infinite ease-in-out;
-            cursor: wait;
-        }
-
-        .circular-btn.connecting .btn-text-status {
-            color: #fbbf24;
-        }
-
-        .circular-btn.error {
-            border-color: var(--status-red);
-            box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
-        }
-
-        .circular-btn.error .btn-text-status {
-            color: var(--status-red);
-        }
-
-        .spinner {
-            width: 30px;
-            height: 30px;
-            border: 3px solid rgba(251, 191, 36, 0.15);
-            border-top-color: #fbbf24;
+        /* Spinner (inside button for connecting / disconnecting) */
+        .btn-spinner {
+            position: absolute;
+            width: 156px;
+            height: 156px;
             border-radius: 50%;
-            animation: spin 1s infinite linear;
-            margin-bottom: 12px;
+            border: 2px solid transparent;
+            border-top-color: var(--amber);
+            animation: spin 0.9s linear infinite;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .app[data-state="connecting"]    .btn-spinner,
+        .app[data-state="disconnecting"] .btn-spinner {
+            opacity: 1;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
-        @keyframes connecting-glow {
-            0% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
-            50% { box-shadow: 0 0 40px rgba(251, 191, 36, 0.7); }
-            100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+        /* ── Status pill ── */
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            transition: all 0.4s;
+            min-width: 160px;
+            justify-content: center;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            flex-shrink: 0;
+            transition: background 0.4s;
+        }
+
+        .app[data-state="active"] .status-pill {
+            color: var(--green);
+            border-color: rgba(16,185,129,0.3);
+            background: var(--green-soft);
+        }
+        .app[data-state="active"] .status-dot {
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: dot-blink 2s ease-in-out infinite;
+        }
+
+        .app[data-state="connecting"] .status-pill,
+        .app[data-state="disconnecting"] .status-pill {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.3);
+            background: var(--amber-soft);
+        }
+        .app[data-state="connecting"] .status-dot,
+        .app[data-state="disconnecting"] .status-dot {
+            background: var(--amber);
+            animation: dot-blink 0.8s ease-in-out infinite;
+        }
+
+        .app[data-state="error"] .status-pill {
+            color: var(--red);
+            border-color: rgba(239,68,68,0.3);
+            background: var(--red-soft);
+        }
+        .app[data-state="error"] .status-dot {
+            background: var(--red);
+        }
+
+        @keyframes dot-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        /* ── Stats grid ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 540px;
+        }
+
+        .stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 10px;
+            text-align: center;
+            transition: border-color 0.4s;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .stat-val {
+            font-size: 16px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-dim);
+            letter-spacing: 0.03em;
+            transition: color 0.3s;
+        }
+
+        .app[data-state="active"] .stat-val {
+            color: var(--text);
+        }
+
+        /* heartbeat pulse */
+        .stat-val.pulse {
+            animation: val-pulse 0.6s ease-out;
+        }
+
+        @keyframes val-pulse {
+            0%   { color: var(--green); transform: scale(1.08); }
+            100% { color: var(--text); transform: scale(1); }
+        }
+
+        /* ── Footer ── */
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .footer-left {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+        }
+
+        .enc-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .enc-badge svg {
+            width: 12px;
+            height: 12px;
+            color: var(--purple);
+        }
+
+        /* ── Toast notifications ── */
+        .toast-area {
+            position: fixed;
+            bottom: 52px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            border: 1px solid;
+            animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s forwards;
+            white-space: nowrap;
+        }
+
+        .toast.info    { background: var(--surface-2); border-color: var(--border); color: var(--text-dim); }
+        .toast.success { background: var(--green-soft); border-color: rgba(16,185,129,0.4); color: var(--green); }
+        .toast.warn    { background: var(--amber-soft); border-color: rgba(245,158,11,0.4); color: var(--amber); }
+        .toast.error   { background: var(--red-soft);   border-color: rgba(239,68,68,0.4);  color: var(--red); }
+
+        @keyframes toast-in  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+        @keyframes toast-out { from { opacity:1; } to { opacity:0; } }
+
+        /* ── Responsive ── */
+        @media (max-height: 540px) {
+            .power-btn  { width: 120px; height: 120px; }
+            .btn-ring   { width: 140px; height: 140px; }
+            .btn-ring-2 { width: 160px; height: 160px; }
+            .btn-spinner{ width: 120px; height: 120px; }
+            .power-icon { width: 32px; height: 32px; }
+            .main { gap: 20px; }
+        }
+
+        @media (max-width: 380px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 12px 16px; }
+            .footer { padding: 10px 16px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="top-section">
-        <div id="connectionBtn" class="circular-btn" onclick="toggleTunnel()">
-            <div id="spinner" class="spinner" style="display: none;"></div>
-            <div id="btnMainText" class="btn-text-main">CONNECT</div>
-            <div id="btnStatusText" class="btn-text-status">Quantum Tunnel</div>
-        </div>
-    </div>
+<div class="app" id="app" data-state="disconnected">
 
-    <div class="bottom-section">
-        <div class="stats-dashboard">
-            <div class="dashboard-header">Secure Tunnel Metrics</div>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-title">Session Time</div>
-                    <div class="stat-value" id="uptime">00:00:00</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">Tx Pkts</div>
-                    <div class="stat-value" id="pktsSent">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">Rx Pkts</div>
-                    <div class="stat-value" id="pktsRecv">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">Heartbeat</div>
-                    <div class="stat-value" id="heartbeat">WAITING</div>
-                </div>
-                <div class="stat-card" id="statusCard">
-                    <div class="stat-title">Tunnel Status</div>
-                    <div class="stat-value" id="statusText" style="color: var(--text-muted);">OFFLINE</div>
-                </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <svg class="logo-icon" viewBox="0 0 28 28" fill="none">
+                <circle cx="14" cy="14" r="13" stroke="#7c3aed" stroke-width="1.5" fill="none"/>
+                <path d="M14 6 L14 22 M9 10 L14 6 L19 10" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <circle cx="14" cy="17" r="3" fill="#7c3aed" opacity="0.7"/>
+            </svg>
+            <span class="logo-text">Q<span>VPN</span></span>
+        </div>
+        <span class="header-badge">PQC Secured</span>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+
+        <!-- Big power button -->
+        <div class="btn-wrap">
+            <div class="btn-ring-2"></div>
+            <div class="btn-ring"></div>
+            <div class="btn-spinner"></div>
+            <button class="power-btn" id="powerBtn" onclick="toggleTunnel()" aria-label="Toggle VPN">
+                <!-- Power icon -->
+                <svg class="power-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v7"/>
+                    <path d="M5.64 5.64A9 9 0 1 0 18.36 5.64"/>
+                </svg>
+                <span class="btn-label" id="btnLabel">Connect</span>
+            </button>
+        </div>
+
+        <!-- Status pill -->
+        <div class="status-pill">
+            <div class="status-dot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Uptime</div>
+                <div class="stat-val" id="uptime">00:00:00</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Tx Pkts</div>
+                <div class="stat-val" id="pktsSent">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Rx Pkts</div>
+                <div class="stat-val" id="pktsRecv">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Heartbeat</div>
+                <div class="stat-val" id="heartbeat">—</div>
             </div>
         </div>
-    </div>
 
-    <script>
-        // DOM Elements
-        const connectionBtn = document.getElementById('connectionBtn');
-        const spinner = document.getElementById('spinner');
-        const btnMainText = document.getElementById('btnMainText');
-        const btnStatusText = document.getElementById('btnStatusText');
-        const uptimeEl = document.getElementById('uptime');
-        const pktsSentEl = document.getElementById('pktsSent');
-        const pktsRecvEl = document.getElementById('pktsRecv');
-        const heartbeatEl = document.getElementById('heartbeat');
-        const statusCard = document.getElementById('statusCard');
-        const statusText = document.getElementById('statusText');
+    </main>
 
-        let currentStatus = 'disconnected'; // 'disconnected', 'connecting', 'active', 'error'
-        let uptimeSeconds = 0;
-        let timerInterval;
+    <!-- Footer -->
+    <footer class="footer">
+        <span class="footer-left" id="footerMsg">Idle</span>
+        <div class="enc-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            AES-256 · ML-KEM
+        </div>
+    </footer>
 
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-            const s = (seconds % 60).toString().padStart(2, '0');
-            return `${h}:${m}:${s}`;
+</div>
+
+<!-- Toast container -->
+<div class="toast-area" id="toastArea"></div>
+
+<script>
+    const app       = document.getElementById('app');
+    const btnLabel  = document.getElementById('btnLabel');
+    const statusText= document.getElementById('statusText');
+    const uptimeEl  = document.getElementById('uptime');
+    const pktsSentEl= document.getElementById('pktsSent');
+    const pktsRecvEl= document.getElementById('pktsRecv');
+    const heartbeatEl=document.getElementById('heartbeat');
+    const footerMsg = document.getElementById('footerMsg');
+    const toastArea = document.getElementById('toastArea');
+
+    let currentState = 'disconnected';
+    let uptimeSeconds = 0;
+    let timerInterval = null;
+
+    const STATE_LABELS = {
+        disconnected:  'Connect',
+        connecting:    'Connecting…',
+        active:        'Disconnect',
+        disconnecting: 'Disconnecting…',
+        error:         'Retry',
+    };
+
+    const STATE_STATUS = {
+        disconnected:  'Disconnected',
+        connecting:    'Establishing Tunnel',
+        active:        'Tunnel Active',
+        disconnecting: 'Disconnecting',
+        error:         'Connection Error',
+    };
+
+    const STATE_FOOTER = {
+        disconnected:  'Idle — ready to connect',
+        connecting:    'Performing PQC handshake…',
+        active:        'Quantum tunnel active',
+        disconnecting: 'Tearing down tunnel…',
+        error:         'Error — click to retry',
+    };
+
+    function formatTime(s) {
+        const h = Math.floor(s / 3600).toString().padStart(2, '0');
+        const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+        const sec = (s % 60).toString().padStart(2, '0');
+        return `${h}:${m}:${sec}`;
+    }
+
+    function toast(msg, type = 'info', duration = 3000) {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.textContent = msg;
+        toastArea.appendChild(el);
+        setTimeout(() => el.remove(), duration);
+    }
+
+    function toggleTunnel() {
+        if (currentState === 'connecting' || currentState === 'disconnecting') return;
+        if (currentState === 'active') {
+            eel.stop_vpn_connection()();
+        } else {
+            eel.start_vpn_connection()();
         }
+    }
 
-        // --- STEP 1: Sending commands TO Python ---
-        function toggleTunnel() {
-            if (currentStatus === 'disconnected' || currentStatus === 'error') {
-                eel.start_vpn_connection()(); 
-            } else {
-                eel.stop_vpn_connection()();
-            }
-        }
+    // Called by Python
+    eel.expose(update_ui_state);
+    function update_ui_state(state) {
+        const prev = currentState;
+        currentState = state;
 
-        // --- STEP 2: Receiving commands FROM Python ---
-        // Eel allows Python to call these JavaScript functions directly
-        eel.expose(update_ui_state);
-        function update_ui_state(state) {
-            currentStatus = state;
-            
-            // Clean up class lists
-            connectionBtn.classList.remove('connected', 'connecting', 'error');
-            clearInterval(timerInterval);
-            
-            if (state === 'active') {
-                spinner.style.display = 'none';
-                connectionBtn.classList.add('connected');
-                btnMainText.textContent = "SECURE";
-                btnStatusText.textContent = "Click to Disconnect";
-                
-                statusText.textContent = "ACTIVE";
-                statusText.style.color = "var(--status-green)";
-                statusCard.style.borderColor = "rgba(16, 185, 129, 0.3)";
-                
-                timerInterval = setInterval(() => {
-                    uptimeSeconds++;
-                    uptimeEl.innerText = formatTime(uptimeSeconds);
-                }, 1000);
-            } else if (state === 'connecting') {
-                spinner.style.display = 'block';
-                connectionBtn.classList.add('connecting');
-                btnMainText.textContent = "CONNECTING";
-                btnStatusText.textContent = "Establishing Tunnel";
-                
-                statusText.textContent = "CONNECTING";
-                statusText.style.color = "#fbbf24";
-                statusCard.style.borderColor = "rgba(251, 191, 36, 0.3)";
-            } else if (state === 'error') {
-                spinner.style.display = 'none';
-                connectionBtn.classList.add('error');
-                btnMainText.textContent = "ERROR";
-                btnStatusText.textContent = "Reconnecting...";
-                
-                statusText.textContent = "ERROR";
-                statusText.style.color = "var(--status-red)";
-                statusCard.style.borderColor = "rgba(239, 68, 68, 0.3)";
-            } else { // 'disconnected'
-                spinner.style.display = 'none';
-                btnMainText.textContent = "CONNECT";
-                btnStatusText.textContent = "Quantum Tunnel";
-                
-                statusText.textContent = "OFFLINE";
-                statusText.style.color = "var(--text-muted)";
-                statusCard.style.borderColor = "transparent";
-                
+        app.dataset.state = state;
+        btnLabel.textContent = STATE_LABELS[state] || state;
+        statusText.textContent = STATE_STATUS[state] || state;
+        footerMsg.textContent = STATE_FOOTER[state] || '';
+
+        clearInterval(timerInterval);
+
+        if (state === 'active') {
+            if (prev !== 'active') {
                 uptimeSeconds = 0;
-                uptimeEl.innerText = "00:00:00";
+                toast('Tunnel established', 'success');
             }
-        }
-
-        eel.expose(update_metrics);
-        function update_metrics(sent, recv) {
-            pktsSentEl.innerText = sent;
-            pktsRecvEl.innerText = recv;
-        }
-
-        // Function called by Python every 5 seconds
-        eel.expose(trigger_heartbeat);
-        function trigger_heartbeat() {
-            heartbeatEl.innerText = "PING/PONG";
-            
-            // Trigger the CSS pulse animation
-            heartbeatEl.classList.remove('pulse');
-            void heartbeatEl.offsetWidth; // Trigger reflow
-            heartbeatEl.classList.add('pulse');
-            
-            setTimeout(() => {
-                if (currentStatus === 'active') heartbeatEl.innerText = "OK";
+            timerInterval = setInterval(() => {
+                uptimeSeconds++;
+                uptimeEl.textContent = formatTime(uptimeSeconds);
             }, 1000);
+        } else if (state === 'disconnected') {
+            if (prev === 'active' || prev === 'disconnecting') {
+                toast('Disconnected', 'info');
+            }
+            uptimeSeconds = 0;
+            uptimeEl.textContent = '00:00:00';
+            pktsSentEl.textContent = '—';
+            pktsRecvEl.textContent = '—';
+            heartbeatEl.textContent = '—';
+        } else if (state === 'connecting') {
+            toast('Connecting…', 'warn');
+        } else if (state === 'error') {
+            toast('Connection failed — click to retry', 'error');
         }
+    }
 
-        // Automatically start connection on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                eel.start_vpn_connection()();
-            }, 100);
-        });
-    </script>
+    eel.expose(update_metrics);
+    function update_metrics(sent, recv) {
+        pktsSentEl.textContent = sent;
+        pktsRecvEl.textContent = recv;
+    }
+
+    eel.expose(trigger_heartbeat);
+    function trigger_heartbeat() {
+        heartbeatEl.textContent = 'OK';
+        heartbeatEl.classList.remove('pulse');
+        void heartbeatEl.offsetWidth;
+        heartbeatEl.classList.add('pulse');
+        heartbeatEl.addEventListener('animationend', () => heartbeatEl.classList.remove('pulse'), { once: true });
+    }
+
+
+</script>
 </body>
 </html>

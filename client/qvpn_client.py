@@ -21,13 +21,11 @@ from client.config import (
     HKDF_ALGORITHM,
     HKDF_SALT,
     HKDF_INFO,
-    DEBUG_MODE_PQC,
-    MASTER_KEY_BYTES,
-    DEBUG_AES,
 )
 from client.pqc_client import PQCClient, PQCServiceUnavailable, EncapsulationError
 from client.session_key import derive_session_key
 from client.system_proxy import set_system_proxy, clear_system_proxy
+from security.agent import SecurityAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - [QVPN] - %(levelname)s - %(message)s")
@@ -109,6 +107,12 @@ class QVPNClient:
             "details": details or {}
         }
         logger.warning(f"TUNNEL EVENT: {json.dumps(event_payload)}")
+        # Forward to security agent for threat detection and alerting
+        if _security_agent:
+            _security_agent.notify_tunnel_event(event_type, {
+                "client_id": self.state.client_id,
+                **(details or {}),
+            })
 
     # -------------------------------------------------------------------------
     # Connection lifecycle
@@ -182,7 +186,7 @@ class QVPNClient:
 
                     # Activate Windows system proxy AFTER the local server is ready
                     try:
-                        set_system_proxy("127.0.0.1:10001")
+                        set_system_proxy("127.0.0.1:8080")
                     except Exception as exc:
                         logger.error("Failed to set system proxy: %s", exc)
 
@@ -220,28 +224,7 @@ class QVPNClient:
     # -------------------------------------------------------------------------
 
     async def _perform_rest_handshake(self):
-        """
-        Executes the two-phase handshake against the Gateway and PQC API.
-
-        In PQC debug mode (DEBUG_MODE_PQC=true) the entire handshake is skipped.
-        A random session_id is generated locally and MASTER_KEY_BYTES is used
-        directly as the AES-256 session key — no PQC API calls are made.
-        """
-        if DEBUG_MODE_PQC:
-            # ── DEBUG MODE ──────────────────────────────────────────────────────
-            # Bypass all PQC operations. Generate a random session_id and use
-            # MASTER_KEY_BYTES as the AES-256 session key.
-            self.state.session_id = str(uuid.uuid4())
-            self._session_key = MASTER_KEY_BYTES
-            self._kem_ciphertext = None
-            logger.warning(
-                "[DEBUG] PQC handshake bypassed. session_id=%s — "
-                "MASTER_KEY is used as session key. (Key value NOT logged.)",
-                self.state.session_id,
-            )
-            return
-
-        # ── NORMAL MODE ─────────────────────────────────────────────────────────
+        """Executes the two-phase handshake against the Gateway and PQC API."""
         headers = {"X-API-Key": GATEWAY_API_KEY}
 
         async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
@@ -293,14 +276,9 @@ class QVPNClient:
         """
         Periodically POST to the Gateway heartbeat endpoint.
 
-        Disabled in PQC debug mode because there is no real session row in the DB.
         Catches CancelledError cleanly (fired by disconnect()) so it does not
         trigger an unwanted reconnect.
         """
-        if DEBUG_MODE_PQC:
-            logger.warning("[DEBUG] Heartbeat loop disabled in PQC debug mode.")
-            return
-
         headers = {"X-API-Key": GATEWAY_API_KEY}
         logger.info("[Heartbeat] Loop started for session=%s", self.state.session_id)
 
@@ -389,7 +367,10 @@ class QVPNClient:
 
         try:
             self._local_server = await asyncio.start_server(
-                self._handle_proxy_connection, "127.0.0.1", 8282
+                self._handle_proxy_connection,
+                "127.0.0.1",
+                8282,
+                limit=262144,  # 256 KB stream reader buffer for VPN throughput
             )
             # Signal readiness BEFORE entering serve_forever so connect() can proceed
             self._local_server_ready.set()
@@ -536,12 +517,9 @@ class QVPNClient:
             cipher = AESGCM(self._session_key)
 
             target_json = json.dumps({"host": host, "port": port}).encode("utf-8")
-            if DEBUG_AES:
-                target_payload = target_json
-            else:
-                target_nonce = os.urandom(12)
-                target_ciphertext = cipher.encrypt(target_nonce, target_json, None)
-                target_payload = target_nonce + target_ciphertext
+            target_nonce = os.urandom(12)
+            target_ciphertext = cipher.encrypt(target_nonce, target_json, None)
+            target_payload = target_nonce + target_ciphertext
 
             logger.debug(
                 "[conn=%s] Sending target to Gateway (%d bytes)...",
@@ -559,21 +537,30 @@ class QVPNClient:
 
             # 6. Bi-directionally pipe traffic (no per-packet timeout — streaming phase)
 
+            # Pre-generate nonce pool to avoid a syscall on every encrypted packet
+            _NONCE_POOL_SIZE = 64
+            _nonce_pool: list[bytes] = []
+
+            def _refill_nonces() -> None:
+                blob = os.urandom(12 * _NONCE_POOL_SIZE)
+                _nonce_pool.extend(blob[i * 12:(i + 1) * 12] for i in range(_NONCE_POOL_SIZE))
+
+            _refill_nonces()
+
             async def pipe_proxy_to_gateway():
                 try:
                     while True:
-                        data = await proxy_reader.read(65536)
+                        data = await proxy_reader.read(131072)
                         if not data:
                             break
-                        if DEBUG_AES:
-                            payload = data
-                        else:
-                            nonce = os.urandom(12)
-                            ciphertext = cipher.encrypt(nonce, data, None)
-                            payload = nonce + ciphertext
+                        if not _nonce_pool:
+                            _refill_nonces()
+                        nonce = _nonce_pool.pop()
+                        ciphertext = cipher.encrypt(nonce, data, None)
+                        payload = nonce + ciphertext
 
                         gw_writer.write(len(payload).to_bytes(4, byteorder="big") + payload)
-                        if gw_writer.transport.get_write_buffer_size() > 262144: 
+                        if gw_writer.transport.get_write_buffer_size() > 262144:
                             await gw_writer.drain()
                         self.state.packets_sent += 1
                 except asyncio.CancelledError:
@@ -594,17 +581,13 @@ class QVPNClient:
                         length = int.from_bytes(length_bytes, byteorder="big")
                         encrypted_payload = await gw_reader.readexactly(length)
                         self.state.packets_received += 1
-                        
-                        if DEBUG_AES:
-                            decrypted = encrypted_payload
-                        else:
-                            nonce = encrypted_payload[:12]
-                            ciphertext = encrypted_payload[12:]
-                            decrypted = cipher.decrypt(nonce, ciphertext, None)
+                        nonce = encrypted_payload[:12]
+                        ciphertext = encrypted_payload[12:]
+                        decrypted = cipher.decrypt(nonce, ciphertext, None)
 
                         proxy_writer.write(decrypted)
                         if proxy_writer.transport.get_write_buffer_size() > 262144:
-                         await proxy_writer.drain()
+                            await proxy_writer.drain()
                 except asyncio.CancelledError:
                     logger.debug("[conn=%s] gateway→proxy pipe cancelled.", conn_id)
                 except Exception as ex:
@@ -780,6 +763,9 @@ def run_status_http_server(client: QVPNClient):
 global_vpn_client = QVPNClient(gateway_ip="127.0.0.1", gateway_port=5151)
 asyncio_loop = asyncio.new_event_loop()
 
+# Security agent — started in __main__, referenced by _emit_tunnel_event
+_security_agent: SecurityAgent | None = None
+
 
 def run_asyncio_thread(loop):
     asyncio.set_event_loop(loop)
@@ -816,6 +802,11 @@ def emergency_cleanup():
         clear_system_proxy()
     except Exception as exc:
         logger.error("Emergency cleanup: clear_system_proxy failed: %s", exc)
+    if _security_agent:
+        try:
+            _security_agent.stop()
+        except Exception as exc:
+            logger.error("Emergency cleanup: security agent stop failed: %s", exc)
 
 
 def sig_handler(signum, frame):
@@ -835,6 +826,11 @@ signal.signal(signal.SIGTERM, sig_handler)
 # ==========================================
 
 if __name__ == "__main__":
+    # Start security agent (daemon threads: sysmon, USB, Windows log monitor, retry pusher)
+    _security_agent = SecurityAgent()
+    _security_agent.start()
+    logger.info("Security agent started (db=security/agent-db.db, push→gateway /api/v1/alerts)")
+
     # Start status HTTP server in a daemon thread
     status_thread = threading.Thread(target=run_status_http_server, args=(global_vpn_client,), daemon=True)
     status_thread.start()

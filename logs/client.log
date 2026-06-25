@@ -13,7 +13,7 @@
 2026-06-25 14:22:23,849 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "TUNNEL_UP", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {"session_id": "0f518304-b84d-43af-b47d-ffe99d107e66"}}
 2026-06-25 14:22:23,849 - [QVPN] - INFO - [Heartbeat] Loop started for session=0f518304-b84d-43af-b47d-ffe99d107e66
 2026-06-25 14:22:24,552 - [QVPN] - INFO - Local proxy socket server listening on 127.0.0.1:8282
-2026-06-25 14:22:24,552 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:10001
+2026-06-25 14:22:24,552 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:8080
 2026-06-25 14:22:24,627 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 14:22:29,210 - [QVPN] - INFO - HTTP Request: POST http://localhost:8001/api/v1/sessions/0f518304-b84d-43af-b47d-ffe99d107e66/heartbeat "HTTP/1.1 200 OK"
 2026-06-25 14:22:30,706 - [QVPN] - INFO - [conn=54fbd44c] New proxy connection received.
@@ -3183,7 +3183,7 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 14:40:21,566 - [QVPN] - INFO - [conn=c8da61e8] TCP connection to Gateway established.
 2026-06-25 14:40:21,566 - [QVPN] - ERROR - [conn=c8da61e8] Error handling tunnel for 'play.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
 2026-06-25 14:40:21,567 - [QVPN] - INFO - [conn=c7300238] New proxy connection received.
-2026-06-25 14:40:21,567 - [QVPN] - WARNING - [conn=c7300238] Tunnel not ready (status=connecting, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,567 - [QVPN] - WARNING - [conn=c7300238] Tunnel not ready (status=connecting, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,567 - [QVPN] - INFO - [conn=8245c515] Local Proxy requested tunnel to play.google.com:443
 2026-06-25 14:40:21,567 - [QVPN] - INFO - [conn=8245c515] Opening TCP connection to Gateway 127.0.0.1:5151 (timeout=15s)...
 2026-06-25 14:40:21,568 - [QVPN] - ERROR - [conn=b0c21e52] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
@@ -3193,19 +3193,19 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 14:40:21,572 - [QVPN] - ERROR - [conn=b0c21e52] Error handling tunnel for 'lh3.googleusercontent.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
 2026-06-25 14:40:21,577 - [QVPN] - INFO - [conn=8d91cbb6] TCP connection to Gateway established.
 2026-06-25 14:40:21,577 - [QVPN] - ERROR - [conn=8d91cbb6] Error handling tunnel for 'play.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
-2026-06-25 14:40:21,577 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 14:40:21,577 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 14:40:21,578 - [QVPN] - INFO - [conn=6544d827] New proxy connection received.
-2026-06-25 14:40:21,578 - [QVPN] - WARNING - [conn=6544d827] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,578 - [QVPN] - WARNING - [conn=6544d827] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,578 - [QVPN] - ERROR - [conn=c8eacc2e] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
 2026-06-25 14:40:21,578 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "SESSION_NOT_ESTABLISHED", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {}}
 2026-06-25 14:40:21,578 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
 2026-06-25 14:40:21,582 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 14:40:21,582 - [QVPN] - ERROR - [conn=c8eacc2e] Error handling tunnel for 'functional.events.data.microsoft.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
-2026-06-25 14:40:21,584 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 14:40:21,584 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 14:40:21,584 - [QVPN] - INFO - [conn=a8c825cf] TCP connection to Gateway established.
 2026-06-25 14:40:21,585 - [QVPN] - ERROR - [conn=a8c825cf] Error handling tunnel for 'play.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
 2026-06-25 14:40:21,585 - [QVPN] - INFO - [conn=ee15f9c8] New proxy connection received.
-2026-06-25 14:40:21,585 - [QVPN] - WARNING - [conn=ee15f9c8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,585 - [QVPN] - WARNING - [conn=ee15f9c8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,585 - [QVPN] - ERROR - [conn=4d4c0d06] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
 2026-06-25 14:40:21,586 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "SESSION_NOT_ESTABLISHED", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {}}
 2026-06-25 14:40:21,586 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
@@ -3218,10 +3218,10 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 14:40:21,595 - [QVPN] - ERROR - [conn=60cca57a] Error handling tunnel for 'functional.events.data.microsoft.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
 2026-06-25 14:40:21,597 - [QVPN] - INFO - [conn=8245c515] TCP connection to Gateway established.
 2026-06-25 14:40:21,598 - [QVPN] - ERROR - [conn=8245c515] Error handling tunnel for 'play.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
-2026-06-25 14:40:21,598 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
-2026-06-25 14:40:21,598 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 14:40:21,598 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
+2026-06-25 14:40:21,598 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 14:40:21,598 - [QVPN] - INFO - [conn=d0666e49] New proxy connection received.
-2026-06-25 14:40:21,598 - [QVPN] - WARNING - [conn=d0666e49] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,598 - [QVPN] - WARNING - [conn=d0666e49] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,599 - [QVPN] - ERROR - [conn=5d9b2565] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
 2026-06-25 14:40:21,599 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "SESSION_NOT_ESTABLISHED", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {}}
 2026-06-25 14:40:21,599 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
@@ -3232,296 +3232,296 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 14:40:21,603 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
 2026-06-25 14:40:21,605 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 14:40:21,606 - [QVPN] - ERROR - [conn=e6475ef0] Error handling tunnel for 'play.google.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
-2026-06-25 14:40:21,613 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
-2026-06-25 14:40:21,614 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 14:40:21,613 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
+2026-06-25 14:40:21,614 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 14:40:21,614 - [QVPN] - INFO - [conn=856ab589] New proxy connection received.
-2026-06-25 14:40:21,614 - [QVPN] - WARNING - [conn=856ab589] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,614 - [QVPN] - WARNING - [conn=856ab589] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,618 - [QVPN] - INFO - [conn=406b2e23] New proxy connection received.
-2026-06-25 14:40:21,618 - [QVPN] - WARNING - [conn=406b2e23] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,618 - [QVPN] - WARNING - [conn=406b2e23] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,620 - [QVPN] - INFO - [conn=718d2f2a] New proxy connection received.
-2026-06-25 14:40:21,620 - [QVPN] - WARNING - [conn=718d2f2a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,620 - [QVPN] - WARNING - [conn=718d2f2a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,621 - [QVPN] - INFO - [conn=67b73c2e] New proxy connection received.
-2026-06-25 14:40:21,621 - [QVPN] - WARNING - [conn=67b73c2e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,621 - [QVPN] - WARNING - [conn=67b73c2e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,623 - [QVPN] - INFO - [conn=86224423] New proxy connection received.
-2026-06-25 14:40:21,623 - [QVPN] - WARNING - [conn=86224423] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,623 - [QVPN] - WARNING - [conn=86224423] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,627 - [QVPN] - INFO - [conn=962a428a] New proxy connection received.
-2026-06-25 14:40:21,627 - [QVPN] - WARNING - [conn=962a428a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,627 - [QVPN] - WARNING - [conn=962a428a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,629 - [QVPN] - INFO - [conn=1734dd79] New proxy connection received.
-2026-06-25 14:40:21,629 - [QVPN] - WARNING - [conn=1734dd79] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,629 - [QVPN] - WARNING - [conn=1734dd79] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,630 - [QVPN] - INFO - [conn=683ff829] New proxy connection received.
-2026-06-25 14:40:21,630 - [QVPN] - WARNING - [conn=683ff829] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,630 - [QVPN] - WARNING - [conn=683ff829] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,632 - [QVPN] - INFO - [conn=cd34db8c] New proxy connection received.
-2026-06-25 14:40:21,633 - [QVPN] - WARNING - [conn=cd34db8c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,633 - [QVPN] - WARNING - [conn=cd34db8c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,634 - [QVPN] - INFO - [conn=045e78ba] New proxy connection received.
-2026-06-25 14:40:21,634 - [QVPN] - WARNING - [conn=045e78ba] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,634 - [QVPN] - WARNING - [conn=045e78ba] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,636 - [QVPN] - INFO - [conn=d6e8fc79] New proxy connection received.
-2026-06-25 14:40:21,636 - [QVPN] - WARNING - [conn=d6e8fc79] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,636 - [QVPN] - WARNING - [conn=d6e8fc79] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,637 - [QVPN] - INFO - [conn=2b7600dd] New proxy connection received.
-2026-06-25 14:40:21,637 - [QVPN] - WARNING - [conn=2b7600dd] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,637 - [QVPN] - WARNING - [conn=2b7600dd] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,639 - [QVPN] - INFO - [conn=967e15b8] New proxy connection received.
-2026-06-25 14:40:21,639 - [QVPN] - WARNING - [conn=967e15b8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,639 - [QVPN] - WARNING - [conn=967e15b8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,646 - [QVPN] - INFO - [conn=a1f8887b] New proxy connection received.
-2026-06-25 14:40:21,647 - [QVPN] - WARNING - [conn=a1f8887b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,647 - [QVPN] - WARNING - [conn=a1f8887b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,650 - [QVPN] - INFO - [conn=3cda55d0] New proxy connection received.
-2026-06-25 14:40:21,650 - [QVPN] - WARNING - [conn=3cda55d0] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,650 - [QVPN] - WARNING - [conn=3cda55d0] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,651 - [QVPN] - INFO - [conn=e1f07efa] New proxy connection received.
-2026-06-25 14:40:21,651 - [QVPN] - WARNING - [conn=e1f07efa] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,651 - [QVPN] - WARNING - [conn=e1f07efa] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,653 - [QVPN] - INFO - [conn=af8b183a] New proxy connection received.
-2026-06-25 14:40:21,654 - [QVPN] - WARNING - [conn=af8b183a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,654 - [QVPN] - WARNING - [conn=af8b183a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,655 - [QVPN] - INFO - [conn=806c48f6] New proxy connection received.
-2026-06-25 14:40:21,656 - [QVPN] - WARNING - [conn=806c48f6] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,656 - [QVPN] - WARNING - [conn=806c48f6] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,658 - [QVPN] - INFO - [conn=32668379] New proxy connection received.
-2026-06-25 14:40:21,658 - [QVPN] - WARNING - [conn=32668379] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,658 - [QVPN] - WARNING - [conn=32668379] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,660 - [QVPN] - INFO - [conn=dd673bb2] New proxy connection received.
-2026-06-25 14:40:21,660 - [QVPN] - WARNING - [conn=dd673bb2] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,660 - [QVPN] - WARNING - [conn=dd673bb2] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,661 - [QVPN] - INFO - [conn=77ad0c70] New proxy connection received.
-2026-06-25 14:40:21,661 - [QVPN] - WARNING - [conn=77ad0c70] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,661 - [QVPN] - WARNING - [conn=77ad0c70] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,663 - [QVPN] - INFO - [conn=6e2ac360] New proxy connection received.
-2026-06-25 14:40:21,663 - [QVPN] - WARNING - [conn=6e2ac360] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,663 - [QVPN] - WARNING - [conn=6e2ac360] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,665 - [QVPN] - INFO - [conn=79e1a4ac] New proxy connection received.
-2026-06-25 14:40:21,665 - [QVPN] - WARNING - [conn=79e1a4ac] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,665 - [QVPN] - WARNING - [conn=79e1a4ac] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,666 - [QVPN] - INFO - [conn=23d32966] New proxy connection received.
-2026-06-25 14:40:21,666 - [QVPN] - WARNING - [conn=23d32966] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,666 - [QVPN] - WARNING - [conn=23d32966] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,667 - [QVPN] - INFO - [conn=43d398cc] New proxy connection received.
-2026-06-25 14:40:21,668 - [QVPN] - WARNING - [conn=43d398cc] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,668 - [QVPN] - WARNING - [conn=43d398cc] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,669 - [QVPN] - INFO - [conn=178e651c] New proxy connection received.
-2026-06-25 14:40:21,669 - [QVPN] - WARNING - [conn=178e651c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,669 - [QVPN] - WARNING - [conn=178e651c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,670 - [QVPN] - INFO - [conn=53153245] New proxy connection received.
-2026-06-25 14:40:21,670 - [QVPN] - WARNING - [conn=53153245] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,670 - [QVPN] - WARNING - [conn=53153245] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,671 - [QVPN] - INFO - [conn=56b7d9b8] New proxy connection received.
-2026-06-25 14:40:21,672 - [QVPN] - WARNING - [conn=56b7d9b8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,672 - [QVPN] - WARNING - [conn=56b7d9b8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,673 - [QVPN] - INFO - [conn=66318e56] New proxy connection received.
-2026-06-25 14:40:21,673 - [QVPN] - WARNING - [conn=66318e56] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,673 - [QVPN] - WARNING - [conn=66318e56] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,674 - [QVPN] - INFO - [conn=99332944] New proxy connection received.
-2026-06-25 14:40:21,674 - [QVPN] - WARNING - [conn=99332944] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,674 - [QVPN] - WARNING - [conn=99332944] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,675 - [QVPN] - INFO - [conn=60a4cb7b] New proxy connection received.
-2026-06-25 14:40:21,676 - [QVPN] - WARNING - [conn=60a4cb7b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,676 - [QVPN] - WARNING - [conn=60a4cb7b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,677 - [QVPN] - INFO - [conn=eddc5190] New proxy connection received.
-2026-06-25 14:40:21,677 - [QVPN] - WARNING - [conn=eddc5190] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,677 - [QVPN] - WARNING - [conn=eddc5190] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,678 - [QVPN] - INFO - [conn=25b96859] New proxy connection received.
-2026-06-25 14:40:21,679 - [QVPN] - WARNING - [conn=25b96859] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,679 - [QVPN] - WARNING - [conn=25b96859] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,680 - [QVPN] - INFO - [conn=2616b495] New proxy connection received.
-2026-06-25 14:40:21,680 - [QVPN] - WARNING - [conn=2616b495] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,680 - [QVPN] - WARNING - [conn=2616b495] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,680 - [QVPN] - INFO - [conn=85c19457] New proxy connection received.
-2026-06-25 14:40:21,680 - [QVPN] - WARNING - [conn=85c19457] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,680 - [QVPN] - WARNING - [conn=85c19457] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,681 - [QVPN] - INFO - [conn=abf07626] New proxy connection received.
-2026-06-25 14:40:21,681 - [QVPN] - WARNING - [conn=abf07626] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,681 - [QVPN] - WARNING - [conn=abf07626] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,682 - [QVPN] - INFO - [conn=23b82020] New proxy connection received.
-2026-06-25 14:40:21,682 - [QVPN] - WARNING - [conn=23b82020] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,682 - [QVPN] - WARNING - [conn=23b82020] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,682 - [QVPN] - INFO - [conn=29ed0bc8] New proxy connection received.
-2026-06-25 14:40:21,682 - [QVPN] - WARNING - [conn=29ed0bc8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,682 - [QVPN] - WARNING - [conn=29ed0bc8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,683 - [QVPN] - INFO - [conn=0f0885c5] New proxy connection received.
-2026-06-25 14:40:21,683 - [QVPN] - WARNING - [conn=0f0885c5] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,683 - [QVPN] - WARNING - [conn=0f0885c5] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,684 - [QVPN] - INFO - [conn=90890f24] New proxy connection received.
-2026-06-25 14:40:21,684 - [QVPN] - WARNING - [conn=90890f24] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,684 - [QVPN] - WARNING - [conn=90890f24] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,684 - [QVPN] - INFO - [conn=edab3fff] New proxy connection received.
-2026-06-25 14:40:21,684 - [QVPN] - WARNING - [conn=edab3fff] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,684 - [QVPN] - WARNING - [conn=edab3fff] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,685 - [QVPN] - INFO - [conn=dd022833] New proxy connection received.
-2026-06-25 14:40:21,685 - [QVPN] - WARNING - [conn=dd022833] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,685 - [QVPN] - WARNING - [conn=dd022833] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,685 - [QVPN] - INFO - [conn=d2e15557] New proxy connection received.
-2026-06-25 14:40:21,685 - [QVPN] - WARNING - [conn=d2e15557] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,685 - [QVPN] - WARNING - [conn=d2e15557] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,686 - [QVPN] - INFO - [conn=be59379b] New proxy connection received.
-2026-06-25 14:40:21,686 - [QVPN] - WARNING - [conn=be59379b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,686 - [QVPN] - WARNING - [conn=be59379b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,687 - [QVPN] - INFO - [conn=b030cd1e] New proxy connection received.
-2026-06-25 14:40:21,687 - [QVPN] - WARNING - [conn=b030cd1e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,687 - [QVPN] - WARNING - [conn=b030cd1e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,687 - [QVPN] - INFO - [conn=ec6a39cd] New proxy connection received.
-2026-06-25 14:40:21,687 - [QVPN] - WARNING - [conn=ec6a39cd] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,687 - [QVPN] - WARNING - [conn=ec6a39cd] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,688 - [QVPN] - INFO - [conn=180c3a1f] New proxy connection received.
-2026-06-25 14:40:21,688 - [QVPN] - WARNING - [conn=180c3a1f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,688 - [QVPN] - WARNING - [conn=180c3a1f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,688 - [QVPN] - INFO - [conn=330aa206] New proxy connection received.
-2026-06-25 14:40:21,688 - [QVPN] - WARNING - [conn=330aa206] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,688 - [QVPN] - WARNING - [conn=330aa206] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,689 - [QVPN] - INFO - [conn=ec7c892c] New proxy connection received.
-2026-06-25 14:40:21,689 - [QVPN] - WARNING - [conn=ec7c892c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,689 - [QVPN] - WARNING - [conn=ec7c892c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,689 - [QVPN] - INFO - [conn=1714d093] New proxy connection received.
-2026-06-25 14:40:21,689 - [QVPN] - WARNING - [conn=1714d093] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,689 - [QVPN] - WARNING - [conn=1714d093] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,690 - [QVPN] - INFO - [conn=a595f095] New proxy connection received.
-2026-06-25 14:40:21,690 - [QVPN] - WARNING - [conn=a595f095] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,690 - [QVPN] - WARNING - [conn=a595f095] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,691 - [QVPN] - INFO - [conn=efb4393c] New proxy connection received.
-2026-06-25 14:40:21,691 - [QVPN] - WARNING - [conn=efb4393c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,691 - [QVPN] - WARNING - [conn=efb4393c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,691 - [QVPN] - INFO - [conn=71b12738] New proxy connection received.
-2026-06-25 14:40:21,691 - [QVPN] - WARNING - [conn=71b12738] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,691 - [QVPN] - WARNING - [conn=71b12738] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,692 - [QVPN] - INFO - [conn=5dac0b68] New proxy connection received.
-2026-06-25 14:40:21,692 - [QVPN] - WARNING - [conn=5dac0b68] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,692 - [QVPN] - WARNING - [conn=5dac0b68] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,693 - [QVPN] - INFO - [conn=f803597c] New proxy connection received.
-2026-06-25 14:40:21,694 - [QVPN] - WARNING - [conn=f803597c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,694 - [QVPN] - WARNING - [conn=f803597c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,695 - [QVPN] - INFO - [conn=adc8f38d] New proxy connection received.
-2026-06-25 14:40:21,695 - [QVPN] - WARNING - [conn=adc8f38d] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,695 - [QVPN] - WARNING - [conn=adc8f38d] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,696 - [QVPN] - INFO - [conn=42cff1aa] New proxy connection received.
-2026-06-25 14:40:21,696 - [QVPN] - WARNING - [conn=42cff1aa] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,696 - [QVPN] - WARNING - [conn=42cff1aa] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,697 - [QVPN] - INFO - [conn=11f2e591] New proxy connection received.
-2026-06-25 14:40:21,697 - [QVPN] - WARNING - [conn=11f2e591] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,697 - [QVPN] - WARNING - [conn=11f2e591] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,698 - [QVPN] - INFO - [conn=3edb5c7b] New proxy connection received.
-2026-06-25 14:40:21,698 - [QVPN] - WARNING - [conn=3edb5c7b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,698 - [QVPN] - WARNING - [conn=3edb5c7b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,699 - [QVPN] - INFO - [conn=fb710b15] New proxy connection received.
-2026-06-25 14:40:21,699 - [QVPN] - WARNING - [conn=fb710b15] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,699 - [QVPN] - WARNING - [conn=fb710b15] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,700 - [QVPN] - INFO - [conn=8ab8653e] New proxy connection received.
-2026-06-25 14:40:21,700 - [QVPN] - WARNING - [conn=8ab8653e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,700 - [QVPN] - WARNING - [conn=8ab8653e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,702 - [QVPN] - INFO - [conn=d56c1588] New proxy connection received.
-2026-06-25 14:40:21,702 - [QVPN] - WARNING - [conn=d56c1588] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,702 - [QVPN] - WARNING - [conn=d56c1588] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,703 - [QVPN] - INFO - [conn=475dfd13] New proxy connection received.
-2026-06-25 14:40:21,703 - [QVPN] - WARNING - [conn=475dfd13] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,703 - [QVPN] - WARNING - [conn=475dfd13] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,704 - [QVPN] - INFO - [conn=15a2bd15] New proxy connection received.
-2026-06-25 14:40:21,705 - [QVPN] - WARNING - [conn=15a2bd15] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,705 - [QVPN] - WARNING - [conn=15a2bd15] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,705 - [QVPN] - INFO - [conn=20bea930] New proxy connection received.
-2026-06-25 14:40:21,706 - [QVPN] - WARNING - [conn=20bea930] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,706 - [QVPN] - WARNING - [conn=20bea930] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,707 - [QVPN] - INFO - [conn=1aaf92f8] New proxy connection received.
-2026-06-25 14:40:21,707 - [QVPN] - WARNING - [conn=1aaf92f8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,707 - [QVPN] - WARNING - [conn=1aaf92f8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,708 - [QVPN] - INFO - [conn=441e5a7f] New proxy connection received.
-2026-06-25 14:40:21,708 - [QVPN] - WARNING - [conn=441e5a7f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,708 - [QVPN] - WARNING - [conn=441e5a7f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,709 - [QVPN] - INFO - [conn=1bb3039c] New proxy connection received.
-2026-06-25 14:40:21,710 - [QVPN] - WARNING - [conn=1bb3039c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,710 - [QVPN] - WARNING - [conn=1bb3039c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,710 - [QVPN] - INFO - [conn=fa4b4ee9] New proxy connection received.
-2026-06-25 14:40:21,710 - [QVPN] - WARNING - [conn=fa4b4ee9] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,710 - [QVPN] - WARNING - [conn=fa4b4ee9] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,711 - [QVPN] - INFO - [conn=1eeae69e] New proxy connection received.
-2026-06-25 14:40:21,712 - [QVPN] - WARNING - [conn=1eeae69e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,712 - [QVPN] - WARNING - [conn=1eeae69e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,713 - [QVPN] - INFO - [conn=e2349a8b] New proxy connection received.
-2026-06-25 14:40:21,713 - [QVPN] - WARNING - [conn=e2349a8b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,713 - [QVPN] - WARNING - [conn=e2349a8b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,714 - [QVPN] - INFO - [conn=c80616f9] New proxy connection received.
-2026-06-25 14:40:21,714 - [QVPN] - WARNING - [conn=c80616f9] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,714 - [QVPN] - WARNING - [conn=c80616f9] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,715 - [QVPN] - INFO - [conn=b8ab7a92] New proxy connection received.
-2026-06-25 14:40:21,715 - [QVPN] - WARNING - [conn=b8ab7a92] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,715 - [QVPN] - WARNING - [conn=b8ab7a92] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,716 - [QVPN] - INFO - [conn=2701d961] New proxy connection received.
-2026-06-25 14:40:21,716 - [QVPN] - WARNING - [conn=2701d961] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,716 - [QVPN] - WARNING - [conn=2701d961] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,718 - [QVPN] - INFO - [conn=72388cbc] New proxy connection received.
-2026-06-25 14:40:21,718 - [QVPN] - WARNING - [conn=72388cbc] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,718 - [QVPN] - WARNING - [conn=72388cbc] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,719 - [QVPN] - INFO - [conn=f3de6355] New proxy connection received.
-2026-06-25 14:40:21,719 - [QVPN] - WARNING - [conn=f3de6355] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,719 - [QVPN] - WARNING - [conn=f3de6355] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,720 - [QVPN] - INFO - [conn=8a5c80a7] New proxy connection received.
-2026-06-25 14:40:21,720 - [QVPN] - WARNING - [conn=8a5c80a7] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,720 - [QVPN] - WARNING - [conn=8a5c80a7] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,722 - [QVPN] - INFO - [conn=7eada3ee] New proxy connection received.
-2026-06-25 14:40:21,723 - [QVPN] - WARNING - [conn=7eada3ee] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,723 - [QVPN] - WARNING - [conn=7eada3ee] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,725 - [QVPN] - INFO - [conn=99427a90] New proxy connection received.
-2026-06-25 14:40:21,726 - [QVPN] - WARNING - [conn=99427a90] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,726 - [QVPN] - WARNING - [conn=99427a90] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,727 - [QVPN] - INFO - [conn=d16aa846] New proxy connection received.
-2026-06-25 14:40:21,727 - [QVPN] - WARNING - [conn=d16aa846] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,727 - [QVPN] - WARNING - [conn=d16aa846] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,729 - [QVPN] - INFO - [conn=e512a968] New proxy connection received.
-2026-06-25 14:40:21,729 - [QVPN] - WARNING - [conn=e512a968] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,729 - [QVPN] - WARNING - [conn=e512a968] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,731 - [QVPN] - INFO - [conn=b51dbe80] New proxy connection received.
-2026-06-25 14:40:21,731 - [QVPN] - WARNING - [conn=b51dbe80] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,731 - [QVPN] - WARNING - [conn=b51dbe80] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,733 - [QVPN] - INFO - [conn=af95f834] New proxy connection received.
-2026-06-25 14:40:21,734 - [QVPN] - WARNING - [conn=af95f834] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,734 - [QVPN] - WARNING - [conn=af95f834] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,736 - [QVPN] - INFO - [conn=a8049845] New proxy connection received.
-2026-06-25 14:40:21,736 - [QVPN] - WARNING - [conn=a8049845] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,736 - [QVPN] - WARNING - [conn=a8049845] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,738 - [QVPN] - INFO - [conn=b85a6851] New proxy connection received.
-2026-06-25 14:40:21,738 - [QVPN] - WARNING - [conn=b85a6851] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,738 - [QVPN] - WARNING - [conn=b85a6851] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,739 - [QVPN] - INFO - [conn=19a4be4f] New proxy connection received.
-2026-06-25 14:40:21,741 - [QVPN] - WARNING - [conn=19a4be4f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,741 - [QVPN] - WARNING - [conn=19a4be4f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,745 - [QVPN] - INFO - [conn=4355679b] New proxy connection received.
-2026-06-25 14:40:21,745 - [QVPN] - WARNING - [conn=4355679b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,745 - [QVPN] - WARNING - [conn=4355679b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,752 - [QVPN] - INFO - [conn=79377194] New proxy connection received.
-2026-06-25 14:40:21,752 - [QVPN] - WARNING - [conn=79377194] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,752 - [QVPN] - WARNING - [conn=79377194] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,755 - [QVPN] - INFO - [conn=c4c584d2] New proxy connection received.
-2026-06-25 14:40:21,756 - [QVPN] - WARNING - [conn=c4c584d2] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,756 - [QVPN] - WARNING - [conn=c4c584d2] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,758 - [QVPN] - INFO - [conn=047b4e05] New proxy connection received.
-2026-06-25 14:40:21,758 - [QVPN] - WARNING - [conn=047b4e05] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,758 - [QVPN] - WARNING - [conn=047b4e05] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,760 - [QVPN] - INFO - [conn=867c7373] New proxy connection received.
-2026-06-25 14:40:21,760 - [QVPN] - WARNING - [conn=867c7373] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,760 - [QVPN] - WARNING - [conn=867c7373] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,764 - [QVPN] - INFO - [conn=aa01b54b] New proxy connection received.
-2026-06-25 14:40:21,764 - [QVPN] - WARNING - [conn=aa01b54b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,764 - [QVPN] - WARNING - [conn=aa01b54b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,766 - [QVPN] - INFO - [conn=5cd0af1c] New proxy connection received.
-2026-06-25 14:40:21,767 - [QVPN] - WARNING - [conn=5cd0af1c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,767 - [QVPN] - WARNING - [conn=5cd0af1c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,775 - [QVPN] - INFO - [conn=4efd215f] New proxy connection received.
-2026-06-25 14:40:21,776 - [QVPN] - WARNING - [conn=4efd215f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,776 - [QVPN] - WARNING - [conn=4efd215f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,781 - [QVPN] - INFO - [conn=2f54b58c] New proxy connection received.
-2026-06-25 14:40:21,781 - [QVPN] - WARNING - [conn=2f54b58c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,781 - [QVPN] - WARNING - [conn=2f54b58c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,784 - [QVPN] - INFO - [conn=81c23ab3] New proxy connection received.
-2026-06-25 14:40:21,784 - [QVPN] - WARNING - [conn=81c23ab3] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,784 - [QVPN] - WARNING - [conn=81c23ab3] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,796 - [QVPN] - INFO - [conn=80fc14ce] New proxy connection received.
-2026-06-25 14:40:21,797 - [QVPN] - WARNING - [conn=80fc14ce] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,797 - [QVPN] - WARNING - [conn=80fc14ce] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,800 - [QVPN] - INFO - [conn=6fa8a81f] New proxy connection received.
-2026-06-25 14:40:21,800 - [QVPN] - WARNING - [conn=6fa8a81f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,800 - [QVPN] - WARNING - [conn=6fa8a81f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,809 - [QVPN] - INFO - [conn=3e9379f1] New proxy connection received.
-2026-06-25 14:40:21,814 - [QVPN] - WARNING - [conn=3e9379f1] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,814 - [QVPN] - WARNING - [conn=3e9379f1] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,849 - [QVPN] - INFO - [conn=a2de902e] New proxy connection received.
-2026-06-25 14:40:21,850 - [QVPN] - WARNING - [conn=a2de902e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,850 - [QVPN] - WARNING - [conn=a2de902e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,861 - [QVPN] - INFO - [conn=c5d1cf29] New proxy connection received.
-2026-06-25 14:40:21,861 - [QVPN] - WARNING - [conn=c5d1cf29] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,861 - [QVPN] - WARNING - [conn=c5d1cf29] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,872 - [QVPN] - INFO - [conn=90e80623] New proxy connection received.
-2026-06-25 14:40:21,872 - [QVPN] - WARNING - [conn=90e80623] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,872 - [QVPN] - WARNING - [conn=90e80623] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,878 - [QVPN] - INFO - [conn=215cd9a0] New proxy connection received.
-2026-06-25 14:40:21,878 - [QVPN] - WARNING - [conn=215cd9a0] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,878 - [QVPN] - WARNING - [conn=215cd9a0] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,882 - [QVPN] - INFO - [conn=dbdbd915] New proxy connection received.
-2026-06-25 14:40:21,883 - [QVPN] - WARNING - [conn=dbdbd915] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,883 - [QVPN] - WARNING - [conn=dbdbd915] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,885 - [QVPN] - INFO - [conn=14c8e232] New proxy connection received.
-2026-06-25 14:40:21,885 - [QVPN] - WARNING - [conn=14c8e232] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,885 - [QVPN] - WARNING - [conn=14c8e232] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,888 - [QVPN] - INFO - [conn=bf2f0370] New proxy connection received.
-2026-06-25 14:40:21,888 - [QVPN] - WARNING - [conn=bf2f0370] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,888 - [QVPN] - WARNING - [conn=bf2f0370] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,895 - [QVPN] - INFO - [conn=9334c0df] New proxy connection received.
-2026-06-25 14:40:21,895 - [QVPN] - WARNING - [conn=9334c0df] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,895 - [QVPN] - WARNING - [conn=9334c0df] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,903 - [QVPN] - INFO - [conn=b25df428] New proxy connection received.
-2026-06-25 14:40:21,903 - [QVPN] - WARNING - [conn=b25df428] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,903 - [QVPN] - WARNING - [conn=b25df428] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,909 - [QVPN] - INFO - [conn=dfb77ce6] New proxy connection received.
-2026-06-25 14:40:21,909 - [QVPN] - WARNING - [conn=dfb77ce6] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,909 - [QVPN] - WARNING - [conn=dfb77ce6] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,919 - [QVPN] - INFO - [conn=74aa927e] New proxy connection received.
-2026-06-25 14:40:21,919 - [QVPN] - WARNING - [conn=74aa927e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,919 - [QVPN] - WARNING - [conn=74aa927e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,925 - [QVPN] - INFO - [conn=437981b6] New proxy connection received.
-2026-06-25 14:40:21,925 - [QVPN] - WARNING - [conn=437981b6] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,925 - [QVPN] - WARNING - [conn=437981b6] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,935 - [QVPN] - INFO - [conn=35efd7bc] New proxy connection received.
-2026-06-25 14:40:21,936 - [QVPN] - WARNING - [conn=35efd7bc] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,936 - [QVPN] - WARNING - [conn=35efd7bc] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,939 - [QVPN] - INFO - [conn=34ba5dba] New proxy connection received.
-2026-06-25 14:40:21,939 - [QVPN] - WARNING - [conn=34ba5dba] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,939 - [QVPN] - WARNING - [conn=34ba5dba] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,948 - [QVPN] - INFO - [conn=01115621] New proxy connection received.
-2026-06-25 14:40:21,948 - [QVPN] - WARNING - [conn=01115621] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,948 - [QVPN] - WARNING - [conn=01115621] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,955 - [QVPN] - INFO - [conn=6753314f] New proxy connection received.
-2026-06-25 14:40:21,955 - [QVPN] - WARNING - [conn=6753314f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,955 - [QVPN] - WARNING - [conn=6753314f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,967 - [QVPN] - INFO - [conn=2d497669] New proxy connection received.
-2026-06-25 14:40:21,967 - [QVPN] - WARNING - [conn=2d497669] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,967 - [QVPN] - WARNING - [conn=2d497669] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,977 - [QVPN] - INFO - [conn=3be7d0be] New proxy connection received.
-2026-06-25 14:40:21,977 - [QVPN] - WARNING - [conn=3be7d0be] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,977 - [QVPN] - WARNING - [conn=3be7d0be] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,982 - [QVPN] - INFO - [conn=695055af] New proxy connection received.
-2026-06-25 14:40:21,982 - [QVPN] - WARNING - [conn=695055af] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,982 - [QVPN] - WARNING - [conn=695055af] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,986 - [QVPN] - INFO - [conn=d7b656b5] New proxy connection received.
-2026-06-25 14:40:21,986 - [QVPN] - WARNING - [conn=d7b656b5] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,986 - [QVPN] - WARNING - [conn=d7b656b5] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,988 - [QVPN] - INFO - [conn=b585cc2b] New proxy connection received.
-2026-06-25 14:40:21,988 - [QVPN] - WARNING - [conn=b585cc2b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,988 - [QVPN] - WARNING - [conn=b585cc2b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,989 - [QVPN] - INFO - [conn=be2451c1] New proxy connection received.
-2026-06-25 14:40:21,990 - [QVPN] - WARNING - [conn=be2451c1] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,990 - [QVPN] - WARNING - [conn=be2451c1] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,994 - [QVPN] - INFO - [conn=8df81a75] New proxy connection received.
-2026-06-25 14:40:21,994 - [QVPN] - WARNING - [conn=8df81a75] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,994 - [QVPN] - WARNING - [conn=8df81a75] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,996 - [QVPN] - INFO - [conn=40abe3be] New proxy connection received.
-2026-06-25 14:40:21,997 - [QVPN] - WARNING - [conn=40abe3be] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:21,997 - [QVPN] - WARNING - [conn=40abe3be] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:21,999 - [QVPN] - INFO - [conn=7481765c] New proxy connection received.
-2026-06-25 14:40:22,000 - [QVPN] - WARNING - [conn=7481765c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,000 - [QVPN] - WARNING - [conn=7481765c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,005 - [QVPN] - INFO - [conn=3f310115] New proxy connection received.
-2026-06-25 14:40:22,005 - [QVPN] - WARNING - [conn=3f310115] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,005 - [QVPN] - WARNING - [conn=3f310115] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,015 - [QVPN] - INFO - [conn=3bce30c7] New proxy connection received.
-2026-06-25 14:40:22,016 - [QVPN] - WARNING - [conn=3bce30c7] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,016 - [QVPN] - WARNING - [conn=3bce30c7] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,023 - [QVPN] - INFO - [conn=38b0fbc9] New proxy connection received.
-2026-06-25 14:40:22,024 - [QVPN] - WARNING - [conn=38b0fbc9] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,024 - [QVPN] - WARNING - [conn=38b0fbc9] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,028 - [QVPN] - INFO - [conn=18c94707] New proxy connection received.
-2026-06-25 14:40:22,033 - [QVPN] - WARNING - [conn=18c94707] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,033 - [QVPN] - WARNING - [conn=18c94707] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,036 - [QVPN] - INFO - [conn=cf16304d] New proxy connection received.
-2026-06-25 14:40:22,036 - [QVPN] - WARNING - [conn=cf16304d] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,036 - [QVPN] - WARNING - [conn=cf16304d] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,041 - [QVPN] - INFO - [conn=25450594] New proxy connection received.
-2026-06-25 14:40:22,042 - [QVPN] - WARNING - [conn=25450594] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,042 - [QVPN] - WARNING - [conn=25450594] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,047 - [QVPN] - INFO - [conn=b2f4534f] New proxy connection received.
-2026-06-25 14:40:22,047 - [QVPN] - WARNING - [conn=b2f4534f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,047 - [QVPN] - WARNING - [conn=b2f4534f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,056 - [QVPN] - INFO - [conn=af85e15e] New proxy connection received.
-2026-06-25 14:40:22,056 - [QVPN] - WARNING - [conn=af85e15e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,056 - [QVPN] - WARNING - [conn=af85e15e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,060 - [QVPN] - INFO - [conn=f012d29b] New proxy connection received.
-2026-06-25 14:40:22,060 - [QVPN] - WARNING - [conn=f012d29b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,060 - [QVPN] - WARNING - [conn=f012d29b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,065 - [QVPN] - INFO - [conn=796bef8e] New proxy connection received.
-2026-06-25 14:40:22,065 - [QVPN] - WARNING - [conn=796bef8e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,065 - [QVPN] - WARNING - [conn=796bef8e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,067 - [QVPN] - INFO - [conn=8317232b] New proxy connection received.
-2026-06-25 14:40:22,068 - [QVPN] - WARNING - [conn=8317232b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,068 - [QVPN] - WARNING - [conn=8317232b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,074 - [QVPN] - INFO - [conn=81bbade6] New proxy connection received.
-2026-06-25 14:40:22,074 - [QVPN] - WARNING - [conn=81bbade6] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,074 - [QVPN] - WARNING - [conn=81bbade6] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,078 - [QVPN] - INFO - [conn=55b59583] New proxy connection received.
-2026-06-25 14:40:22,079 - [QVPN] - WARNING - [conn=55b59583] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,079 - [QVPN] - WARNING - [conn=55b59583] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,084 - [QVPN] - INFO - [conn=57c4ad9c] New proxy connection received.
-2026-06-25 14:40:22,084 - [QVPN] - WARNING - [conn=57c4ad9c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,084 - [QVPN] - WARNING - [conn=57c4ad9c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,088 - [QVPN] - INFO - [conn=7ee9c102] New proxy connection received.
-2026-06-25 14:40:22,088 - [QVPN] - WARNING - [conn=7ee9c102] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,088 - [QVPN] - WARNING - [conn=7ee9c102] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,091 - [QVPN] - INFO - [conn=28cc1bbe] New proxy connection received.
-2026-06-25 14:40:22,091 - [QVPN] - WARNING - [conn=28cc1bbe] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,091 - [QVPN] - WARNING - [conn=28cc1bbe] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,093 - [QVPN] - INFO - [conn=c28e6160] New proxy connection received.
-2026-06-25 14:40:22,093 - [QVPN] - WARNING - [conn=c28e6160] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,093 - [QVPN] - WARNING - [conn=c28e6160] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,096 - [QVPN] - INFO - [conn=764c61db] New proxy connection received.
-2026-06-25 14:40:22,096 - [QVPN] - WARNING - [conn=764c61db] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,096 - [QVPN] - WARNING - [conn=764c61db] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:22,455 - [QVPN] - INFO - [conn=b8e5cea0] New proxy connection received.
-2026-06-25 14:40:22,455 - [QVPN] - WARNING - [conn=b8e5cea0] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:22,455 - [QVPN] - WARNING - [conn=b8e5cea0] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:23,259 - [QVPN] - INFO - [conn=09b199f3] New proxy connection received.
-2026-06-25 14:40:23,259 - [QVPN] - WARNING - [conn=09b199f3] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 14:40:23,259 - [QVPN] - WARNING - [conn=09b199f3] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 14:40:30,850 - [QVPN] - INFO - [Heartbeat] Loop exited for session=None.
 2026-06-25 14:40:33,913 - [QVPN] - INFO - HTTP Request: POST http://localhost:8001/api/v1/handshake/init "HTTP/1.1 200 OK"
 2026-06-25 14:40:33,916 - [QVPN] - INFO - Calling PQC API /kem/encapsulate...
@@ -3533,7 +3533,7 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 14:40:53,556 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "TUNNEL_UP", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {"session_id": "750c5852-b677-4c91-a16a-9de3d809c7e8"}}
 2026-06-25 14:40:53,556 - [QVPN] - INFO - [Heartbeat] Loop started for session=750c5852-b677-4c91-a16a-9de3d809c7e8
 2026-06-25 14:40:54,083 - [QVPN] - INFO - Local proxy socket server is already listening on 127.0.0.1:8282
-2026-06-25 14:40:54,093 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:10001
+2026-06-25 14:40:54,093 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:8080
 2026-06-25 14:40:54,139 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 14:40:54,236 - [QVPN] - INFO - [conn=5a846b5a] New proxy connection received.
 2026-06-25 14:40:54,237 - [QVPN] - INFO - [conn=5a846b5a] Local Proxy requested tunnel to meet.google.com:443
@@ -4419,17 +4419,17 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 15:00:15,109 - [QVPN] - INFO - [conn=6d7ac593] TCP connection to Gateway established.
 2026-06-25 15:00:15,109 - [QVPN] - ERROR - [conn=6d7ac593] Error handling tunnel for 'meet.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
 2026-06-25 15:00:15,109 - [QVPN] - INFO - [conn=e036999c] New proxy connection received.
-2026-06-25 15:00:15,110 - [QVPN] - WARNING - [conn=e036999c] Tunnel not ready (status=connecting, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,110 - [QVPN] - WARNING - [conn=e036999c] Tunnel not ready (status=connecting, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,110 - [QVPN] - INFO - [conn=ff17f82a] Local Proxy requested tunnel to meet.google.com:443
 2026-06-25 15:00:15,110 - [QVPN] - INFO - [conn=ff17f82a] Opening TCP connection to Gateway 127.0.0.1:5151 (timeout=15s)...
 2026-06-25 15:00:15,112 - [QVPN] - INFO - [conn=2071b25f] TCP connection to Gateway established.
 2026-06-25 15:00:15,112 - [QVPN] - ERROR - [conn=2071b25f] Error handling tunnel for 'play.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
 2026-06-25 15:00:15,112 - [QVPN] - INFO - [conn=8e3ac8ab] New proxy connection received.
-2026-06-25 15:00:15,112 - [QVPN] - WARNING - [conn=8e3ac8ab] Tunnel not ready (status=connecting, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,112 - [QVPN] - WARNING - [conn=8e3ac8ab] Tunnel not ready (status=connecting, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,114 - [QVPN] - INFO - [conn=246b555c] TCP connection to Gateway established.
 2026-06-25 15:00:15,114 - [QVPN] - ERROR - [conn=246b555c] Error handling tunnel for 'meet.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
 2026-06-25 15:00:15,114 - [QVPN] - INFO - [conn=b988344e] New proxy connection received.
-2026-06-25 15:00:15,114 - [QVPN] - WARNING - [conn=b988344e] Tunnel not ready (status=connecting, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,114 - [QVPN] - WARNING - [conn=b988344e] Tunnel not ready (status=connecting, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,116 - [QVPN] - ERROR - [conn=3a44a001] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
 2026-06-25 15:00:15,116 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "SESSION_NOT_ESTABLISHED", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {}}
 2026-06-25 15:00:15,116 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
@@ -4437,9 +4437,9 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 15:00:15,121 - [QVPN] - ERROR - [conn=3a44a001] Error handling tunnel for 'rr3---sn-ajcvh5-5a.googlevideo.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
 2026-06-25 15:00:15,123 - [QVPN] - INFO - [conn=ff17f82a] TCP connection to Gateway established.
 2026-06-25 15:00:15,123 - [QVPN] - ERROR - [conn=ff17f82a] Error handling tunnel for 'meet.google.com:443': AttributeError: 'NoneType' object has no attribute 'encode'
-2026-06-25 15:00:15,123 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 15:00:15,123 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 15:00:15,123 - [QVPN] - INFO - [conn=06658818] New proxy connection received.
-2026-06-25 15:00:15,123 - [QVPN] - WARNING - [conn=06658818] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,123 - [QVPN] - WARNING - [conn=06658818] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,124 - [QVPN] - ERROR - [conn=0f6c7afd] Gateway rejected session resumption (SESSION_NOT_ESTABLISHED). Triggering full reconnect...
 2026-06-25 15:00:15,124 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "SESSION_NOT_ESTABLISHED", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {}}
 2026-06-25 15:00:15,124 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
@@ -4455,99 +4455,99 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 15:00:15,134 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=0
 2026-06-25 15:00:15,139 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 15:00:15,139 - [QVPN] - ERROR - [conn=0ae3d41d] Error handling tunnel for 'play.google.com:443': Exception: Gateway session is not established (SESSION_NOT_ESTABLISHED)
-2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
-2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
-2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running — ignoring duplicate request.
+2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
+2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
+2026-06-25 15:00:15,141 - [QVPN] - INFO - Connection task is already running ï¿½ ignoring duplicate request.
 2026-06-25 15:00:15,142 - [QVPN] - INFO - [conn=c06d5c2c] New proxy connection received.
-2026-06-25 15:00:15,142 - [QVPN] - WARNING - [conn=c06d5c2c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,142 - [QVPN] - WARNING - [conn=c06d5c2c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,145 - [QVPN] - INFO - [conn=4d08eb44] New proxy connection received.
-2026-06-25 15:00:15,145 - [QVPN] - WARNING - [conn=4d08eb44] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,145 - [QVPN] - WARNING - [conn=4d08eb44] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,151 - [QVPN] - INFO - [conn=42c4b3dd] New proxy connection received.
-2026-06-25 15:00:15,151 - [QVPN] - WARNING - [conn=42c4b3dd] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,151 - [QVPN] - WARNING - [conn=42c4b3dd] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,153 - [QVPN] - INFO - [conn=2e845692] New proxy connection received.
-2026-06-25 15:00:15,154 - [QVPN] - WARNING - [conn=2e845692] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,154 - [QVPN] - WARNING - [conn=2e845692] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,158 - [QVPN] - INFO - [conn=06312a08] New proxy connection received.
-2026-06-25 15:00:15,159 - [QVPN] - WARNING - [conn=06312a08] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,159 - [QVPN] - WARNING - [conn=06312a08] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,160 - [QVPN] - INFO - [conn=58b1757e] New proxy connection received.
-2026-06-25 15:00:15,160 - [QVPN] - WARNING - [conn=58b1757e] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,160 - [QVPN] - WARNING - [conn=58b1757e] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,162 - [QVPN] - INFO - [conn=07480fba] New proxy connection received.
-2026-06-25 15:00:15,162 - [QVPN] - WARNING - [conn=07480fba] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,162 - [QVPN] - WARNING - [conn=07480fba] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,163 - [QVPN] - INFO - [conn=6093db50] New proxy connection received.
-2026-06-25 15:00:15,163 - [QVPN] - WARNING - [conn=6093db50] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,163 - [QVPN] - WARNING - [conn=6093db50] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,165 - [QVPN] - INFO - [conn=c834009d] New proxy connection received.
-2026-06-25 15:00:15,165 - [QVPN] - WARNING - [conn=c834009d] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,165 - [QVPN] - WARNING - [conn=c834009d] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,166 - [QVPN] - INFO - [conn=4177efeb] New proxy connection received.
-2026-06-25 15:00:15,166 - [QVPN] - WARNING - [conn=4177efeb] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,166 - [QVPN] - WARNING - [conn=4177efeb] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,168 - [QVPN] - INFO - [conn=7e72651f] New proxy connection received.
-2026-06-25 15:00:15,168 - [QVPN] - WARNING - [conn=7e72651f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,168 - [QVPN] - WARNING - [conn=7e72651f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,170 - [QVPN] - INFO - [conn=804ee90c] New proxy connection received.
-2026-06-25 15:00:15,170 - [QVPN] - WARNING - [conn=804ee90c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,170 - [QVPN] - WARNING - [conn=804ee90c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,172 - [QVPN] - INFO - [conn=f7661d81] New proxy connection received.
-2026-06-25 15:00:15,172 - [QVPN] - WARNING - [conn=f7661d81] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,172 - [QVPN] - WARNING - [conn=f7661d81] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,175 - [QVPN] - INFO - [conn=41f82237] New proxy connection received.
-2026-06-25 15:00:15,175 - [QVPN] - WARNING - [conn=41f82237] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,175 - [QVPN] - WARNING - [conn=41f82237] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,177 - [QVPN] - INFO - [conn=e478df42] New proxy connection received.
-2026-06-25 15:00:15,177 - [QVPN] - WARNING - [conn=e478df42] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,177 - [QVPN] - WARNING - [conn=e478df42] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,178 - [QVPN] - INFO - [conn=c1358493] New proxy connection received.
-2026-06-25 15:00:15,178 - [QVPN] - WARNING - [conn=c1358493] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,178 - [QVPN] - WARNING - [conn=c1358493] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,179 - [QVPN] - INFO - [conn=82380466] New proxy connection received.
-2026-06-25 15:00:15,179 - [QVPN] - WARNING - [conn=82380466] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,179 - [QVPN] - WARNING - [conn=82380466] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,180 - [QVPN] - INFO - [conn=769483c1] New proxy connection received.
-2026-06-25 15:00:15,180 - [QVPN] - WARNING - [conn=769483c1] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,180 - [QVPN] - WARNING - [conn=769483c1] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,182 - [QVPN] - INFO - [conn=06c40593] New proxy connection received.
-2026-06-25 15:00:15,182 - [QVPN] - WARNING - [conn=06c40593] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,182 - [QVPN] - WARNING - [conn=06c40593] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,183 - [QVPN] - INFO - [conn=cdcec9f7] New proxy connection received.
-2026-06-25 15:00:15,183 - [QVPN] - WARNING - [conn=cdcec9f7] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,183 - [QVPN] - WARNING - [conn=cdcec9f7] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,184 - [QVPN] - INFO - [conn=1ddcc41d] New proxy connection received.
-2026-06-25 15:00:15,184 - [QVPN] - WARNING - [conn=1ddcc41d] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,184 - [QVPN] - WARNING - [conn=1ddcc41d] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,185 - [QVPN] - INFO - [conn=d5dd6c87] New proxy connection received.
-2026-06-25 15:00:15,186 - [QVPN] - WARNING - [conn=d5dd6c87] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,186 - [QVPN] - WARNING - [conn=d5dd6c87] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,188 - [QVPN] - INFO - [conn=e40bdbdc] New proxy connection received.
-2026-06-25 15:00:15,189 - [QVPN] - WARNING - [conn=e40bdbdc] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,189 - [QVPN] - WARNING - [conn=e40bdbdc] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,190 - [QVPN] - INFO - [conn=5cafe5cb] New proxy connection received.
-2026-06-25 15:00:15,190 - [QVPN] - WARNING - [conn=5cafe5cb] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,190 - [QVPN] - WARNING - [conn=5cafe5cb] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,191 - [QVPN] - INFO - [conn=ec78b0df] New proxy connection received.
-2026-06-25 15:00:15,192 - [QVPN] - WARNING - [conn=ec78b0df] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,192 - [QVPN] - WARNING - [conn=ec78b0df] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,193 - [QVPN] - INFO - [conn=dbec81b7] New proxy connection received.
-2026-06-25 15:00:15,193 - [QVPN] - WARNING - [conn=dbec81b7] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,193 - [QVPN] - WARNING - [conn=dbec81b7] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,196 - [QVPN] - INFO - [conn=0c577bac] New proxy connection received.
-2026-06-25 15:00:15,197 - [QVPN] - WARNING - [conn=0c577bac] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,197 - [QVPN] - WARNING - [conn=0c577bac] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,198 - [QVPN] - INFO - [conn=71818fcc] New proxy connection received.
-2026-06-25 15:00:15,199 - [QVPN] - WARNING - [conn=71818fcc] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,199 - [QVPN] - WARNING - [conn=71818fcc] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,199 - [QVPN] - INFO - [conn=f1b38e1c] New proxy connection received.
-2026-06-25 15:00:15,199 - [QVPN] - WARNING - [conn=f1b38e1c] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,199 - [QVPN] - WARNING - [conn=f1b38e1c] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,201 - [QVPN] - INFO - [conn=3c11c08b] New proxy connection received.
-2026-06-25 15:00:15,201 - [QVPN] - WARNING - [conn=3c11c08b] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,201 - [QVPN] - WARNING - [conn=3c11c08b] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,202 - [QVPN] - INFO - [conn=188c686d] New proxy connection received.
-2026-06-25 15:00:15,203 - [QVPN] - WARNING - [conn=188c686d] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,203 - [QVPN] - WARNING - [conn=188c686d] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,206 - [QVPN] - INFO - [conn=042977d1] New proxy connection received.
-2026-06-25 15:00:15,206 - [QVPN] - WARNING - [conn=042977d1] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,206 - [QVPN] - WARNING - [conn=042977d1] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,206 - [QVPN] - INFO - [conn=31763c51] New proxy connection received.
-2026-06-25 15:00:15,207 - [QVPN] - WARNING - [conn=31763c51] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,207 - [QVPN] - WARNING - [conn=31763c51] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,207 - [QVPN] - INFO - [conn=a2875544] New proxy connection received.
-2026-06-25 15:00:15,207 - [QVPN] - WARNING - [conn=a2875544] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,207 - [QVPN] - WARNING - [conn=a2875544] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,208 - [QVPN] - INFO - [conn=bf652f03] New proxy connection received.
-2026-06-25 15:00:15,208 - [QVPN] - WARNING - [conn=bf652f03] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,208 - [QVPN] - WARNING - [conn=bf652f03] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,216 - [QVPN] - INFO - [conn=146a9b12] New proxy connection received.
-2026-06-25 15:00:15,216 - [QVPN] - WARNING - [conn=146a9b12] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,216 - [QVPN] - WARNING - [conn=146a9b12] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,224 - [QVPN] - INFO - [conn=39e0fcf8] New proxy connection received.
-2026-06-25 15:00:15,224 - [QVPN] - WARNING - [conn=39e0fcf8] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,224 - [QVPN] - WARNING - [conn=39e0fcf8] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,233 - [QVPN] - INFO - [conn=e1efda0a] New proxy connection received.
-2026-06-25 15:00:15,233 - [QVPN] - WARNING - [conn=e1efda0a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,233 - [QVPN] - WARNING - [conn=e1efda0a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,238 - [QVPN] - INFO - [conn=02631c13] New proxy connection received.
-2026-06-25 15:00:15,238 - [QVPN] - WARNING - [conn=02631c13] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,238 - [QVPN] - WARNING - [conn=02631c13] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,241 - [QVPN] - INFO - [conn=f08ffe8f] New proxy connection received.
-2026-06-25 15:00:15,241 - [QVPN] - WARNING - [conn=f08ffe8f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,241 - [QVPN] - WARNING - [conn=f08ffe8f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,244 - [QVPN] - INFO - [conn=8cba203a] New proxy connection received.
-2026-06-25 15:00:15,245 - [QVPN] - WARNING - [conn=8cba203a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,245 - [QVPN] - WARNING - [conn=8cba203a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,246 - [QVPN] - INFO - [conn=2c5c6a1a] New proxy connection received.
-2026-06-25 15:00:15,246 - [QVPN] - WARNING - [conn=2c5c6a1a] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,246 - [QVPN] - WARNING - [conn=2c5c6a1a] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,251 - [QVPN] - INFO - [conn=b3aee0fa] New proxy connection received.
-2026-06-25 15:00:15,251 - [QVPN] - WARNING - [conn=b3aee0fa] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,251 - [QVPN] - WARNING - [conn=b3aee0fa] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,259 - [QVPN] - INFO - [conn=fedf4a4f] New proxy connection received.
-2026-06-25 15:00:15,259 - [QVPN] - WARNING - [conn=fedf4a4f] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,259 - [QVPN] - WARNING - [conn=fedf4a4f] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:15,260 - [QVPN] - INFO - [conn=73669576] New proxy connection received.
-2026-06-25 15:00:15,261 - [QVPN] - WARNING - [conn=73669576] Tunnel not ready (status=error, session_id=None) — rejecting connection.
+2026-06-25 15:00:15,261 - [QVPN] - WARNING - [conn=73669576] Tunnel not ready (status=error, session_id=None) ï¿½ rejecting connection.
 2026-06-25 15:00:24,375 - [QVPN] - INFO - [Heartbeat] Loop exited for session=None.
 2026-06-25 15:00:27,144 - [QVPN] - INFO - HTTP Request: POST http://localhost:8001/api/v1/handshake/init "HTTP/1.1 200 OK"
 2026-06-25 15:00:27,148 - [QVPN] - INFO - Calling PQC API /kem/encapsulate...
@@ -4564,7 +4564,7 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-06-25 15:00:47,605 - [QVPN] - WARNING - TUNNEL EVENT: {"event_type": "TUNNEL_UP", "peer_id": "test-client-1", "ip_address": "127.0.0.1", "details": {"session_id": "7f996729-bb48-46c5-b09b-4f73d91f1d11"}}
 2026-06-25 15:00:47,605 - [QVPN] - INFO - [Heartbeat] Loop started for session=7f996729-bb48-46c5-b09b-4f73d91f1d11
 2026-06-25 15:00:48,397 - [QVPN] - INFO - Local proxy socket server is already listening on 127.0.0.1:8282
-2026-06-25 15:00:48,405 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:10001
+2026-06-25 15:00:48,405 - [QVPN] - INFO - System proxy registry values updated: ProxyEnable=1, ProxyServer=127.0.0.1:8080
 2026-06-25 15:00:48,449 - [QVPN] - INFO - Windows internet settings refreshed successfully.
 2026-06-25 15:00:50,891 - [QVPN] - INFO - [conn=f203db59] New proxy connection received.
 2026-06-25 15:00:50,892 - [QVPN] - INFO - [conn=f203db59] Local Proxy requested tunnel to lh3.googleusercontent.com:443
