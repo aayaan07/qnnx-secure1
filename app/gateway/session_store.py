@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 
 from cachetools import TTLCache
 
@@ -53,6 +54,16 @@ class SessionKeyStore:
         ttl = ttl_seconds if ttl_seconds is not None else settings.SESSION_TTL_SECONDS
         self._cache: TTLCache = TTLCache(maxsize=self.MAX_SESSIONS, ttl=ttl)
         self._lock = threading.Lock()
+        self.last_seen: dict[str, float] = {}
+
+    def touch(self, session_id: str) -> None:
+        with self._lock:
+            self.last_seen[session_id] = time.monotonic()
+
+    def seconds_since_seen(self, session_id: str) -> float | None:
+        with self._lock:
+            ts = self.last_seen.get(session_id)
+            return None if ts is None else time.monotonic() - ts
 
     def put(self, session_id: str, aes_key: bytes) -> None:
         """
@@ -83,6 +94,7 @@ class SessionKeyStore:
         """
         with self._lock:
             self._cache.pop(session_id, None)
+            self.last_seen.pop(session_id, None)
         logger.debug("[SESSION_STORE] Evicted AES key for session=%s", session_id)
 
     def size(self) -> int:

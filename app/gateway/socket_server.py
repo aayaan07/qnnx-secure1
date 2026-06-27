@@ -41,7 +41,6 @@ import asyncio
 import json
 import os
 import uuid
-import time
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -139,6 +138,7 @@ async def _pipe_client_to_remote(
                 continue
 
             # Forward decrypted traffic upstream
+            session_store.touch(session_id)
             remote_writer.write(raw_traffic)
             if remote_writer.transport.get_write_buffer_size() > 262144:
                 await remote_writer.drain()
@@ -474,7 +474,7 @@ async def _flush_stats(
 
 
 async def _record_heartbeat(session_id: str) -> None:
-    session_store.last_seen[session_id] = time.time()
+    session_store.touch(session_id)
     logger.debug("[HEARTBEAT] RECEIVED | session=%s", session_id)
     def _db_work():
         db = SessionLocal()

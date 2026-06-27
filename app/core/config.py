@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     SESSION_TTL_SECONDS: int = 3600
 
     # Heartbeat watchdog — sessions with no heartbeat for this long are expired
-    HEARTBEAT_TIMEOUT_SECONDS: int = 60
+    HEARTBEAT_TIMEOUT_SECONDS: int = 300
 
     # ------------------------------------------------------------------ #
     # Audit logging                                                        #

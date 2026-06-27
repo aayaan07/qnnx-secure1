@@ -165,7 +165,8 @@ async def expire_stale_sessions() -> None:
                             last_hb = ts.last_heartbeat
                             if last_hb.tzinfo is None:
                                 last_hb = last_hb.replace(tzinfo=timezone.utc)
-                            if last_hb < cutoff:
+                            recent = session_store.seconds_since_seen(str(ts.session_id))
+                            if last_hb < cutoff and (recent is None or recent > timeout):
                                 _tunnel_state_repo.update(db, str(ts.id), {"status": "TIMED_OUT"})
                                 _session_repo.update(db, str(ts.session_id), {
                                     "tunnel_status": TunnelStatus.EXPIRED,
