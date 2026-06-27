@@ -673,6 +673,12 @@ class QVPNClient:
 
         logger.info("[Disconnect] Cleanup started (session=%s).", self.state.session_id)
 
+        # Immediately signal UI so the button shows "Disconnecting…" and is disabled
+        try:
+            call_eel("update_ui_state", "disconnecting")
+        except Exception as exc:
+            logger.debug("[Disconnect] Failed to update UI to disconnecting: %s", exc)
+
         # Step 1 — deactivate Windows system proxy
         try:
             clear_system_proxy()

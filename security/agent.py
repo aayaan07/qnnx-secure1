@@ -254,6 +254,7 @@ class GatewayAlertPusher:
                 json=payload,
                 headers=self._headers,
                 timeout=10.0,
+                trust_env=False,
             )
             if resp.status_code in (200, 201):
                 self._store.mark_pushed(alert["alert_id"])

@@ -16,14 +16,14 @@ logger = logging.getLogger("QVPN_Config")
 
 # Gateway API Configuration
 GATEWAY_API_URL = os.getenv("GATEWAY_API_URL", "http://localhost:8001/api/v1").rstrip("/")
-GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "qvpn_live_k3QkE7APJgFTpXEafOzeLR3NYDie0wHP-IOGn_JE0Og")
+GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY")
 CLIENT_IDENTIFIER = os.getenv("CLIENT_IDENTIFIER", "test-client-1")
 
 # PQC API Configuration (pointing to Sentinel production by default)
 PQC_API_URL = os.getenv("PQC_API_URL", "https://qnnx-sentinel-production.up.railway.app/api/v1").rstrip("/")
 # API Key and signing secret for the PQC API (QNNX Sentinel)
-PQC_API_KEY = os.getenv("PQC_API_KEY", "qnnx_T-jfvqServyQKVNp0IjvPB0PG9C8KvZTzoBiLCQg2ks")
-PQC_SIGNING_SECRET = os.getenv("PQC_SIGNING_SECRET", "qnnxsig_JtRadgK84riOp73H4nwxz6N11Hph6TzHObGkxbotdAo")
+PQC_API_KEY = os.getenv("PQC_API_KEY")
+PQC_SIGNING_SECRET = os.getenv("PQC_SIGNING_SECRET")
 
 # HKDF parameters (Shared parameters for key derivation)
 # Dynamically load from Gateway shared config if possible, fallback to Gateway defaults
