@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 from cryptography.hazmat.primitives import hashes
 
@@ -35,21 +34,8 @@ EEL_PORT = int(os.getenv("EEL_PORT", "8085"))
 HKDF_SALT = None
 HKDF_INFO = None
 
-try:
-    # Try importing app.core.config by adding the gateway directory to sys.path
-    GATEWAY_DIR = os.environ.get(
-        "GATEWAY_PATH" # Local dev default
-    )
-    if os.path.exists(GATEWAY_DIR) and GATEWAY_DIR not in sys.path:
-        sys.path.insert(0, GATEWAY_DIR)
-    
-    from app.core.config import settings
-    HKDF_SALT = settings.HKDF_SALT
-    HKDF_INFO = settings.HKDF_INFO
-except Exception as e:
-    # Fallback to Gateway's default parameters
-    HKDF_SALT = b"qvpn-hkdf-salt-v1"
-    HKDF_INFO = b"qvpn-tunnel-key-v1"
+HKDF_SALT = b"qvpn-hkdf-salt-v1"
+HKDF_INFO = b"qvpn-tunnel-key-v1"
 
 HKDF_KEY_LENGTH = 32
 HKDF_ALGORITHM = hashes.SHA256()
