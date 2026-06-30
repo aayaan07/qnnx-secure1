@@ -10,8 +10,6 @@ try:
 except ImportError:
     pass
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - [LocalProxy] - %(levelname)s - %(message)s")
 logger = logging.getLogger("Local_Proxy")
 
 PROXY_HOST = "127.0.0.1"

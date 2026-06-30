@@ -16,8 +16,12 @@ import eel
 from client.config import (
     GATEWAY_API_URL,
     GATEWAY_API_KEY,
+    GATEWAY_IP,
+    GATEWAY_PORT,
     CLIENT_IDENTIFIER,
     PQC_API_URL,
+    LOCAL_PROXY_ADDRESS,
+    EEL_PORT,
     HKDF_ALGORITHM,
     HKDF_SALT,
     HKDF_INFO,
@@ -25,6 +29,7 @@ from client.config import (
 from client.pqc_client import PQCClient, PQCServiceUnavailable, EncapsulationError
 from client.session_key import derive_session_key
 from client.system_proxy import set_system_proxy, clear_system_proxy
+from client.local_proxy import handle_client as _http_proxy_handle_client
 from security.agent import SecurityAgent
 
 # Configure logging
@@ -79,6 +84,8 @@ class QVPNClient:
         self._heartbeat_task: asyncio.Task | None = None
         self._local_server: asyncio.Server | None = None
         self._local_server_task: asyncio.Task | None = None
+        self._http_proxy_server: asyncio.Server | None = None
+        self._http_proxy_task: asyncio.Task | None = None
 
         # Signals when port 8282 is actually bound and ready to accept connections.
         # Prevents RC-3: system proxy being activated before the local server is listening.
@@ -173,6 +180,10 @@ class QVPNClient:
                     self._local_server_task = asyncio.create_task(
                         self._start_local_data_server(), name="local_server"
                     )
+                    # Start HTTP/HTTPS proxy server (port 8080) in the same loop.
+                    self._http_proxy_task = asyncio.create_task(
+                        self._start_http_proxy_server(), name="http_proxy"
+                    )
                     try:
                         await asyncio.wait_for(
                             asyncio.shield(self._local_server_ready.wait()),
@@ -186,7 +197,7 @@ class QVPNClient:
 
                     # Activate Windows system proxy AFTER the local server is ready
                     try:
-                        set_system_proxy("127.0.0.1:8080")
+                        set_system_proxy(LOCAL_PROXY_ADDRESS)
                     except Exception as exc:
                         logger.error("Failed to set system proxy: %s", exc)
 
@@ -382,6 +393,38 @@ class QVPNClient:
         except Exception as exc:
             logger.error("Local proxy server failed: %s", exc)
             self._local_server_ready.set()  # unblock connect() even on failure
+
+    async def _start_http_proxy_server(self):
+        """
+        Start the HTTP/HTTPS proxy server on 127.0.0.1:8080.
+
+        Uses local_proxy.handle_client directly so no separate process is needed.
+        If the port is already in use (e.g. from a previous run that didn't clean up),
+        logs a warning and returns — the existing listener will still work.
+        """
+        if self._http_proxy_server and self._http_proxy_server.is_serving():
+            logger.info("HTTP proxy already listening on 127.0.0.1:8080")
+            return
+
+        try:
+            self._http_proxy_server = await asyncio.start_server(
+                _http_proxy_handle_client,
+                "127.0.0.1",
+                8080,
+                limit=262144,
+            )
+            logger.info("HTTP/HTTPS proxy listening on 127.0.0.1:8080")
+            async with self._http_proxy_server:
+                await self._http_proxy_server.serve_forever()
+        except OSError as exc:
+            if "address already in use" in str(exc).lower() or exc.errno in (98, 10048):
+                logger.warning("HTTP proxy port 8080 already in use — assuming existing listener is active.")
+            else:
+                logger.error("HTTP proxy server failed to start: %s", exc)
+        except asyncio.CancelledError:
+            logger.info("HTTP proxy server task cancelled.")
+        except Exception as exc:
+            logger.error("HTTP proxy server error: %s", exc)
 
     # -------------------------------------------------------------------------
     # Per-connection proxy handler
@@ -693,21 +736,42 @@ class QVPNClient:
         except Exception as exc:
             logger.error("[Disconnect] Failed to cancel heartbeat task: %s", exc)
 
-        # Step 3 — close local proxy server (stops accepting new connections)
-        try:
-            if self._local_server:
-                self._local_server.close()
-                await self._local_server.wait_closed()
-        except Exception as exc:
-            logger.error("[Disconnect] Failed to close local proxy server: %s", exc)
-
-        # Step 4 — cancel local server task
+        # Step 3 — cancel local server task first (aborts active connections),
+        # then close the server so wait_closed() returns promptly.
         try:
             if self._local_server_task and not self._local_server_task.done():
                 self._local_server_task.cancel()
                 await asyncio.wait([self._local_server_task], timeout=2.0)
         except Exception as exc:
             logger.error("[Disconnect] Failed to cancel local server task: %s", exc)
+
+        try:
+            if self._local_server:
+                self._local_server.close()
+                try:
+                    await asyncio.wait_for(self._local_server.wait_closed(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.warning("[Disconnect] Local proxy server did not close within 2s — continuing.")
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to close local proxy server: %s", exc)
+
+        # Step 4 — cancel HTTP proxy task first, then close server.
+        try:
+            if self._http_proxy_task and not self._http_proxy_task.done():
+                self._http_proxy_task.cancel()
+                await asyncio.wait([self._http_proxy_task], timeout=2.0)
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to cancel HTTP proxy task: %s", exc)
+
+        try:
+            if self._http_proxy_server:
+                self._http_proxy_server.close()
+                try:
+                    await asyncio.wait_for(self._http_proxy_server.wait_closed(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.warning("[Disconnect] HTTP proxy server did not close within 2s — continuing.")
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to close HTTP proxy server: %s", exc)
 
         # Step 5 — reset session state and in-memory key
         try:
@@ -718,6 +782,7 @@ class QVPNClient:
             self._kem_ciphertext = None
             self._local_server = None
             self._local_server_ready.clear()
+            self._http_proxy_server = None
         except Exception as exc:
             logger.error("[Disconnect] Failed to reset session state: %s", exc)
 
@@ -766,7 +831,7 @@ def run_status_http_server(client: QVPNClient):
 # EEL TO ASYNCIO BRIDGE
 # ==========================================
 
-global_vpn_client = QVPNClient(gateway_ip="127.0.0.1", gateway_port=5151)
+global_vpn_client = QVPNClient(gateway_ip=GATEWAY_IP, gateway_port=GATEWAY_PORT)
 asyncio_loop = asyncio.new_event_loop()
 
 # Security agent — started in __main__, referenced by _emit_tunnel_event
@@ -852,7 +917,7 @@ if __name__ == "__main__":
     print("Launching QVPN UI...")
     try:
         # Port 8085 mode Edge
-        eel.start('index.html', size=(850, 600), mode='edge', port=8085)
+        eel.start('index.html', size=(850, 600), mode='edge', port=EEL_PORT)
     except (SystemExit, MemoryError, KeyboardInterrupt):
         logger.info("UI Closed. Shutting down background tasks...")
         asyncio.run_coroutine_threadsafe(global_vpn_client.disconnect(), asyncio_loop)
