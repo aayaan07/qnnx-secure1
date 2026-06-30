@@ -27,7 +27,7 @@ class TrafficStat(Base):
     packets_sent = Column(BigInteger, nullable=False, server_default="0")
     packets_received = Column(BigInteger, nullable=False, server_default="0")
 
-    recorded_at = Column(
+    last_updated = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now()
@@ -36,4 +36,4 @@ class TrafficStat(Base):
 
 # Indexes
 _idx_traffic_session_id = Index("ix_traffic_stats_session_id", TrafficStat.session_id)
-_idx_traffic_recorded_at = Index("ix_traffic_stats_recorded_at", TrafficStat.recorded_at)
+_idx_traffic_recorded_at = Index("ix_traffic_stats_recorded_at", TrafficStat.last_updated)

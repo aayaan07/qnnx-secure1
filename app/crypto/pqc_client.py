@@ -67,8 +67,8 @@ class KeygenResponse(BaseModel):
 
 class DecapsulationRequest(BaseModel):
     algorithm: str
-    ciphertext: str   # base64-encoded
-    key_id: str       # Instead of private_key, pass key_id reference
+    ciphertext: str    # base64-encoded
+    private_key: str   # key_id reference; PQC API field name is private_key
 
 
 class DecapsulationResponse(BaseModel):
@@ -79,7 +79,7 @@ class DecapsulationResponse(BaseModel):
 class SigningRequest(BaseModel):
     algorithm: str
     message: str
-    key_id: str       # Instead of private_key, pass key_id reference
+    private_key: str   # key_id reference; PQC API field name is private_key
 
 
 class SigningResponse(BaseModel):
@@ -233,7 +233,7 @@ class PQCClient:
         body = DecapsulationRequest(
             algorithm=algorithm,
             ciphertext=base64.b64encode(ciphertext_bytes).decode("ascii"),
-            key_id=key_id,
+            private_key=key_id,
         ).model_dump()
         try:
             data = await self._post("kem/decapsulate", body)
@@ -253,7 +253,7 @@ class PQCClient:
         body = SigningRequest(
             algorithm=algorithm,
             message=message,
-            key_id=key_id,
+            private_key=key_id,
         ).model_dump()
         try:
             data = await self._post("sign", body)

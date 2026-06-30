@@ -92,7 +92,7 @@ class TrafficStatsOut(BaseModel):
     bytes_received: int
     packets_sent: int
     packets_received: int
-    recorded_at: Optional[datetime]
+    last_updated: Optional[datetime]
 
     model_config = {"from_attributes": True}
 
@@ -346,5 +346,5 @@ def get_stats(session_id: str, db: DBSession = Depends(get_db)):
         bytes_received=stat.bytes_received,
         packets_sent=stat.packets_sent,
         packets_received=stat.packets_received,
-        recorded_at=stat.recorded_at,
+        last_updated=stat.last_updated,
     )
