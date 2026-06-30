@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session as DBSession
 from app.repositories.client_repo import ClientRepository
 from app.repositories.monitoring_repo import (
     SystemMetricRepository,
-    UserActivityRepository,
     NetworkActivityRepository,
     ProcessEventRepository,
     DeviceEventRepository,
@@ -32,18 +31,9 @@ logger = logging.getLogger("qvpn.monitoring_service")
 
 _client_repo = ClientRepository()
 _metric_repo = SystemMetricRepository()
-_activity_repo = UserActivityRepository()
 _network_repo = NetworkActivityRepository()
 _process_repo = ProcessEventRepository()
 _device_repo = DeviceEventRepository()
-
-# Map Windows Security event IDs to normalized event_type strings
-_WIN_EVENT_ID_MAP = {
-    4624: "login",
-    4625: "failed_login",
-    4634: "logout",
-    4647: "logout",
-}
 
 
 def _resolve_client(db: DBSession, client_identifier: str):
@@ -101,58 +91,6 @@ def ingest_metrics(
 
     result = _metric_repo.bulk_insert(db, records)
     logger.info("[MONITORING] metrics client=%s count=%d", client_identifier, len(result))
-    return result
-
-
-# ---------------------------------------------------------------------------
-# User Activity
-# ---------------------------------------------------------------------------
-
-def ingest_activity(
-    db: DBSession,
-    client_identifier: str,
-    events: List[dict],
-):
-    """
-    Ingest a batch of user activity (login/logout/failed_login) events.
-
-    Each event dict from the agent details must contain:
-      event_id   — Windows Security Event ID (int: 4624, 4625, 4634, 4647)
-    Optional:
-      time_generated — ISO string timestamp
-      record_number  — Windows event record number
-      username       — extracted username if available
-
-    Returns the list of created UserActivity rows.
-    """
-    client = _resolve_client(db, client_identifier)
-
-    records = []
-    for i, ev in enumerate(events):
-        try:
-            raw_event_id = ev.get("event_id")
-            if raw_event_id is None:
-                raise KeyError("event_id")
-            win_event_id = int(raw_event_id)
-            event_type = _WIN_EVENT_ID_MAP.get(win_event_id, "unknown")
-
-            ts = _parse_ts(ev.get("time_generated")) or _now_utc()
-            records.append({
-                "client_id": client.id,
-                "event_type": event_type,
-                "username": ev.get("username"),
-                "timestamp": ts,
-                "details": {
-                    "windows_event_id": win_event_id,
-                    "record_number": ev.get("record_number"),
-                    "raw": ev,
-                },
-            })
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError(f"Invalid activity event at index {i}: {exc}") from exc
-
-    result = _activity_repo.bulk_insert(db, records)
-    logger.info("[MONITORING] activity client=%s count=%d", client_identifier, len(result))
     return result
 
 

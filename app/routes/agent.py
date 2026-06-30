@@ -34,7 +34,6 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.database import get_db
 from app.repositories.monitoring_repo import (
     SystemMetricRepository,
-    UserActivityRepository,
     NetworkActivityRepository,
     ProcessEventRepository,
     DeviceEventRepository,
@@ -45,11 +44,10 @@ logger = logging.getLogger("qvpn.routes.agent")
 
 router = APIRouter(tags=["Monitoring Agent"])
 
-_metric_repo   = SystemMetricRepository()
-_activity_repo = UserActivityRepository()
-_network_repo  = NetworkActivityRepository()
-_process_repo  = ProcessEventRepository()
-_device_repo   = DeviceEventRepository()
+_metric_repo  = SystemMetricRepository()
+_network_repo = NetworkActivityRepository()
+_process_repo = ProcessEventRepository()
+_device_repo  = DeviceEventRepository()
 
 
 # ---------------------------------------------------------------------------
@@ -66,18 +64,6 @@ class SystemMetricItem(BaseModel):
 class MetricsBatchRequest(BaseModel):
     client_identifier: str
     readings: Union[SystemMetricItem, List[SystemMetricItem]]
-
-
-class UserActivityItem(BaseModel):
-    event_id:       int
-    time_generated: Optional[str] = None
-    record_number:  Optional[int] = None
-    username:       Optional[str] = None
-
-
-class ActivityBatchRequest(BaseModel):
-    client_identifier: str
-    events: Union[UserActivityItem, List[UserActivityItem]]
 
 
 class NetworkActivityItem(BaseModel):
@@ -133,16 +119,6 @@ class SystemMetricOut(BaseModel):
     cpu_percent:  float
     ram_percent:  float
     disk_percent: float
-    model_config = {"from_attributes": True}
-
-
-class UserActivityOut(BaseModel):
-    id:         str
-    client_id:  str
-    event_type: str
-    username:   Optional[str]
-    timestamp:  datetime
-    details:    Optional[dict]
     model_config = {"from_attributes": True}
 
 
@@ -212,23 +188,6 @@ def ingest_metrics(payload: MetricsBatchRequest, db: DBSession = Depends(get_db)
     try:
         created = monitoring_service.ingest_metrics(
             db=db, client_identifier=payload.client_identifier, readings=readings,
-        )
-    except ValueError as exc:
-        _handle_ingest_error(exc)
-    return IngestResponse(inserted=len(created))
-
-
-@router.post(
-    "/agent/activity",
-    response_model=IngestResponse,
-    status_code=201,
-    summary="Ingest user activity events batch",
-)
-def ingest_activity(payload: ActivityBatchRequest, db: DBSession = Depends(get_db)):
-    events = _normalize_list(payload.events)
-    try:
-        created = monitoring_service.ingest_activity(
-            db=db, client_identifier=payload.client_identifier, events=events,
         )
     except ValueError as exc:
         _handle_ingest_error(exc)
@@ -306,26 +265,6 @@ def get_client_metrics(
         SystemMetricOut(
             id=str(r.id), client_id=str(r.client_id), timestamp=r.timestamp,
             cpu_percent=r.cpu_percent, ram_percent=r.ram_percent, disk_percent=r.disk_percent,
-        ) for r in rows
-    ]
-
-
-@router.get(
-    "/clients/{client_id}/activity",
-    response_model=List[UserActivityOut],
-    summary="Query user activity events for a client",
-)
-def get_client_activity(
-    client_id: str,
-    since: Optional[datetime] = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
-    db: DBSession = Depends(get_db),
-):
-    rows = _activity_repo.list_by_client(db, client_id, since=since, limit=limit)
-    return [
-        UserActivityOut(
-            id=str(r.id), client_id=str(r.client_id), event_type=r.event_type,
-            username=r.username, timestamp=r.timestamp, details=r.details,
         ) for r in rows
     ]
 

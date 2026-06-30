@@ -17,7 +17,6 @@ from typing import List, Optional
 from sqlalchemy.orm import Session as DBSession
 
 from app.models.system_metric import SystemMetric
-from app.models.user_activity import UserActivity
 from app.models.network_activity import NetworkActivity
 from app.models.process_event import ProcessEvent
 from app.models.device_event import DeviceEvent
@@ -89,41 +88,6 @@ class SystemMetricRepository:
         if since:
             q = q.filter(SystemMetric.timestamp >= since)
         return q.order_by(SystemMetric.timestamp.desc()).limit(limit).all()
-
-
-# ---------------------------------------------------------------------------
-# UserActivity
-# ---------------------------------------------------------------------------
-
-class UserActivityRepository:
-
-    def bulk_insert(self, db: DBSession, records: List[dict]) -> List[UserActivity]:
-        """
-        Insert a batch of user activity events.
-
-        Each dict must contain: client_id, event_type, timestamp.
-        Optional: username, details.
-        """
-        instances = [
-            UserActivity(id=uuid.uuid4(), **r)
-            for r in records
-        ]
-        return _bulk_insert(db, instances)
-
-    def list_by_client(
-        self,
-        db: DBSession,
-        client_id: str,
-        since: Optional[datetime] = None,
-        limit: int = 100,
-    ) -> List[UserActivity]:
-        q = (
-            db.query(UserActivity)
-            .filter(UserActivity.client_id == _to_uuid(client_id))
-        )
-        if since:
-            q = q.filter(UserActivity.timestamp >= since)
-        return q.order_by(UserActivity.timestamp.desc()).limit(limit).all()
 
 
 # ---------------------------------------------------------------------------
