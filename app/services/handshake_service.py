@@ -65,11 +65,18 @@ _event_repo = TunnelEventRepository()
 # ---------------------------------------------------------------------------
 
 
-async def init_handshake(db: DBSession | None = None, client_identifier: str = "") -> dict:
+_DEFAULT_KEM_ALGORITHM = "ML-KEM-768"
+
+
+async def init_handshake(
+    db: DBSession | None = None,
+    client_identifier: str = "",
+    kem_algorithm: str | None = None,
+) -> dict:
     """
     Phase 1 of the VPN handshake.
 
-    1. Verify the client is registered and active.
+    1. Look up the client; auto-create it if it does not exist yet.
     2. Generate a fresh KEM keypair via PQC API.
     3. Create a new Session row in state PENDING.
     4. Record HANDSHAKE_INIT event.
@@ -78,24 +85,38 @@ async def init_handshake(db: DBSession | None = None, client_identifier: str = "
     The returned public_key should be forwarded to the VPN client so it can
     encapsulate (encrypt) the shared secret.
     """
-    # Step 1 — client lookup (sync DB → thread)
-    def _lookup_client():
+    # Step 1 — client lookup; auto-register on first contact
+    def _lookup_or_create_client():
         _db = db or SessionLocal()
         try:
             client = _client_repo.get_by_identifier(_db, client_identifier)
-            if not client:
-                return None, None, None
-            return client.id, client.is_active, client.kem_algorithm
+            if client:
+                return client.id, client.is_active, client.kem_algorithm, False
+            # Auto-register: new system connecting for the first time
+            algorithm = kem_algorithm or _DEFAULT_KEM_ALGORITHM
+            new_client = _client_repo.create(_db, {
+                "id": uuid.uuid4(),
+                "client_identifier": client_identifier,
+                "kem_algorithm": algorithm,
+                "public_key": b"",
+                "private_key": b"",
+                "is_active": True,
+            })
+            return new_client.id, new_client.is_active, new_client.kem_algorithm, True
         finally:
             if not db:
                 _db.close()
 
-    client_id, is_active, algorithm = await asyncio.to_thread(_lookup_client)
+    client_id, is_active, algorithm, auto_created = await asyncio.to_thread(_lookup_or_create_client)
 
-    if not client_id:
-        raise ClientNotRegistered(f"client_identifier '{client_identifier}' not registered")
     if not is_active:
         raise ClientNotRegistered(f"client_identifier '{client_identifier}' is disabled")
+
+    if auto_created:
+        logger.info("[HANDSHAKE] Auto-registered new client: %s algorithm=%s", client_identifier, algorithm)
+    else:
+        # Allow caller-supplied algorithm to override stored one (e.g. client upgrade)
+        algorithm = kem_algorithm or algorithm
 
     # Step 2 — keygen via PQC API (fully async)
     try:
@@ -173,6 +194,7 @@ async def init_handshake(db: DBSession | None = None, client_identifier: str = "
         "session_id": str(session_id),
         "algorithm": algorithm,
         "public_key": public_key_bytes,
+        "client_registered": auto_created,
     }
 
 

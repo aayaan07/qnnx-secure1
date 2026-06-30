@@ -51,12 +51,14 @@ router = APIRouter(prefix="/handshake", tags=["Handshake"])
 
 class HandshakeInitRequest(BaseModel):
     client_identifier: str
+    kem_algorithm: str | None = None  # optional; defaults to ML-KEM-768 for new clients
 
 
 class HandshakeInitResponse(BaseModel):
     session_id: str
     algorithm: str
     public_key: str  # base64-encoded; send to VPN client for encapsulation
+    client_registered: bool = False  # True when the client was auto-created on this request
 
 
 class HandshakeCompleteRequest(BaseModel):
@@ -89,11 +91,15 @@ async def handshake_init(
     payload: HandshakeInitRequest,
 ):
     try:
-        result = await init_handshake(client_identifier=payload.client_identifier)
+        result = await init_handshake(
+            client_identifier=payload.client_identifier,
+            kem_algorithm=payload.kem_algorithm,
+        )
         return HandshakeInitResponse(
             session_id=result["session_id"],
             algorithm=result["algorithm"],
             public_key=base64.b64encode(result["public_key"]).decode("ascii"),
+            client_registered=result.get("client_registered", False),
         )
     except ClientNotRegistered as exc:
         raise HTTPException(status_code=401, detail=str(exc))
