@@ -274,9 +274,67 @@ class GatewayAlertPusher:
             self.push(alert)
 
 
+class GatewayMetricsPusher:
+    """
+    Batches system metric readings and pushes them to POST /api/v1/agent/metrics.
+
+    Readings accumulate in memory; flush() is called by SystemMonitor every
+    METRIC_FLUSH_INTERVAL_TICKS polls (default: every 6 ticks = 30 s at 5 s cadence).
+    Failed batches are not retried — metrics are best-effort telemetry.
+    """
+
+    _GATEWAY_METRICS_URL = f"{GATEWAY_API_URL}/agent/metrics"
+
+    def __init__(self):
+        self._lock     = threading.Lock()
+        self._readings: list[dict] = []
+        self._headers  = {
+            "X-API-Key":    GATEWAY_API_KEY,
+            "Content-Type": "application/json",
+        }
+
+    def add(self, cpu: float, ram: float, disk: float, recorded_at: str) -> None:
+        with self._lock:
+            self._readings.append({
+                "cpu_usage":   cpu,
+                "ram_usage":   ram,
+                "disk_usage":  disk,
+                "recorded_at": recorded_at,
+            })
+
+    def flush(self) -> None:
+        with self._lock:
+            if not self._readings:
+                return
+            batch, self._readings = self._readings, []
+
+        payload = {
+            "client_identifier": CLIENT_IDENTIFIER,
+            "readings": batch,
+        }
+        try:
+            resp = httpx.post(
+                self._GATEWAY_METRICS_URL,
+                json=payload,
+                headers=self._headers,
+                timeout=10.0,
+                trust_env=False,
+            )
+            if resp.status_code == 201:
+                log.info("[Agent→GW] Pushed %d metric reading(s).", len(batch))
+            else:
+                log.warning("[Agent→GW] Metrics push HTTP %d — %s", resp.status_code, resp.text[:200])
+        except Exception as exc:
+            log.warning("[Agent→GW] Metrics push error: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # System Monitor  (CPU / RAM / disk, every 5 seconds)
 # ---------------------------------------------------------------------------
+# Number of 5-second poll ticks before flushing metrics to the gateway (30 s)
+METRIC_FLUSH_INTERVAL_TICKS = 6
+
+
 class SystemMonitor:
     """
     Polls system resources every SYSTEM_POLL_INTERVAL_SECONDS (5 s).
@@ -285,13 +343,18 @@ class SystemMonitor:
       - Absolute threshold breach  → emit alert at appropriate severity
       - Sudden spike above rolling baseline  → emit SPIKE alert
       - Re-alerts only when severity level changes (avoids flood)
+
+    Every METRIC_FLUSH_INTERVAL_TICKS polls (30 s) the accumulated readings
+    are pushed to the gateway via GatewayMetricsPusher.
     """
 
-    def __init__(self, emit_alert: Callable, store: SQLiteStore):
-        self._emit   = emit_alert
-        self._store  = store
-        self._stop   = threading.Event()
+    def __init__(self, emit_alert: Callable, store: SQLiteStore, metrics_pusher: "GatewayMetricsPusher"):
+        self._emit           = emit_alert
+        self._store          = store
+        self._metrics_pusher = metrics_pusher
+        self._stop           = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._tick           = 0
 
         self._cpu_baseline:  deque[float] = deque(maxlen=BASELINE_WINDOW)
         self._ram_baseline:  deque[float] = deque(maxlen=BASELINE_WINDOW)
@@ -329,16 +392,30 @@ class SystemMonitor:
         cpu  = psutil.cpu_percent(interval=0.5)
         ram  = psutil.virtual_memory().percent
         disk = psutil.disk_usage(os.path.abspath(os.sep)).percent
+        now  = datetime.now(timezone.utc).isoformat()
 
-        # Save metric snapshot to local SQLite (no gateway push for metrics)
+        # Cache locally for offline inspection
         self._store.save_metric({
             "id":           str(uuid.uuid4()),
             "client_id":    CLIENT_IDENTIFIER,
-            "timestamp":    datetime.now(timezone.utc).isoformat(),
+            "timestamp":    now,
             "cpu_percent":  round(cpu, 1),
             "ram_percent":  round(ram, 1),
             "disk_percent": round(disk, 1),
         })
+
+        # Accumulate reading for gateway batch push
+        self._metrics_pusher.add(
+            cpu=round(cpu, 1),
+            ram=round(ram, 1),
+            disk=round(disk, 1),
+            recorded_at=now,
+        )
+
+        self._tick += 1
+        if self._tick >= METRIC_FLUSH_INTERVAL_TICKS:
+            self._tick = 0
+            self._metrics_pusher.flush()
 
         self._check_cpu(cpu)
         self._check_ram(ram)
@@ -598,14 +675,15 @@ class QVPNThreatEngine:
     """
 
     def __init__(self, store: SQLiteStore, pusher: GatewayAlertPusher):
-        self._store  = store
-        self._pusher = pusher
+        self._store          = store
+        self._pusher         = pusher
+        self._metrics_pusher = GatewayMetricsPusher()
 
         self._failed_logins:       dict[str, list[float]] = {}
         self._connection_attempts: dict[str, list[float]] = {}
         self._last_threat_time = 0.0
 
-        self._sysmon    = SystemMonitor(emit_alert=self.emit_alert, store=store)
+        self._sysmon    = SystemMonitor(emit_alert=self.emit_alert, store=store, metrics_pusher=self._metrics_pusher)
         self._usb       = USBMonitor(on_insert=self._on_usb_insert)
         self._win_log   = WindowsLogMonitor(
             on_unknown_process=self._on_unknown_process,
