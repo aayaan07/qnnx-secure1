@@ -464,6 +464,142 @@
         @keyframes toast-in  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
         @keyframes toast-out { from { opacity:1; } to { opacity:0; } }
 
+        /* ── Settings gear ── */
+        .gear-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            transition: color 0.2s;
+        }
+        .gear-btn:hover { color: var(--text); }
+        .gear-btn svg { width: 18px; height: 18px; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+
+        /* ── Setup modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 6, 12, 0.82);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 440px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px 26px 22px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            margin-bottom: 4px;
+        }
+        .modal-sub {
+            font-size: 11.5px;
+            color: var(--text-dim);
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+
+        .device-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--purple-soft);
+            border: 1px solid rgba(124,58,237,0.3);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 20px;
+        }
+        .device-chip b { color: var(--purple); font-weight: 700; }
+
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: block;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 12.5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field input:focus { border-color: var(--purple); }
+
+        .modal-error {
+            display: none;
+            background: var(--red-soft);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: var(--red);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 11.5px;
+            line-height: 1.45;
+            margin-bottom: 14px;
+        }
+        .modal-error.show { display: block; }
+
+        .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+
+        .btn-primary {
+            flex: 1;
+            background: var(--purple);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 11px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: opacity 0.2s, background 0.2s;
+        }
+        .btn-primary:hover { background: #8b4ff0; }
+        .btn-primary:disabled { opacity: 0.55; cursor: default; }
+
+        .btn-ghost {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            border-radius: 8px;
+            padding: 11px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-muted); }
+
         /* ── Responsive ── */
         @media (max-height: 540px) {
             .power-btn  { width: 120px; height: 120px; }
@@ -495,7 +631,15 @@
             </svg>
             <span class="logo-text">Q<span>VPN</span></span>
         </div>
-        <span class="header-badge">PQC Secured</span>
+        <div class="header-right">
+            <span class="header-badge">PQC Secured</span>
+            <button class="gear-btn" id="settingsBtn" onclick="openSetup(true)" aria-label="Settings" title="Credentials">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
+        </div>
     </header>
 
     <!-- Main -->
@@ -558,6 +702,45 @@
 
 </div>
 
+<!-- Setup / credentials modal -->
+<div class="modal-overlay" id="setupOverlay">
+    <div class="modal">
+        <div class="modal-title" id="setupTitle">Set up QVPN</div>
+        <div class="modal-sub">
+            Enter your API credentials to activate this device. They are verified
+            against the Gateway &amp; PQC services, then stored securely in Windows
+            Credential Manager — never on disk.
+        </div>
+
+        <div class="device-chip">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+            </svg>
+            Device ID:&nbsp;<b id="deviceId">…</b>
+        </div>
+
+        <div class="modal-error" id="setupError"></div>
+
+        <div class="field">
+            <label for="fGatewayKey">Gateway API Key</label>
+            <input type="password" id="fGatewayKey" autocomplete="off" spellcheck="false" placeholder="qvpn_live_…">
+        </div>
+        <div class="field">
+            <label for="fPqcKey">PQC API Key</label>
+            <input type="password" id="fPqcKey" autocomplete="off" spellcheck="false" placeholder="qnnx_…">
+        </div>
+        <div class="field">
+            <label for="fPqcSecret">PQC Signing Secret</label>
+            <input type="password" id="fPqcSecret" autocomplete="off" spellcheck="false" placeholder="qnnxsig_…">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-ghost" id="setupCancelBtn" onclick="closeSetup()" style="display:none;">Cancel</button>
+            <button class="btn-primary" id="setupSaveBtn" onclick="submitSetup()">Verify &amp; Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-area" id="toastArea"></div>
 
@@ -617,6 +800,11 @@
 
     function toggleTunnel() {
         if (currentState === 'connecting' || currentState === 'disconnecting') return;
+        if (!isConfigured) {
+            toast('Set up credentials first', 'warn');
+            openSetup(false);
+            return;
+        }
         if (currentState === 'active') {
             eel.stop_vpn_connection()();
         } else {
@@ -677,6 +865,92 @@
         heartbeatEl.addEventListener('animationend', () => heartbeatEl.classList.remove('pulse'), { once: true });
     }
 
+    // ── Setup / credentials modal ──────────────────────────────────────────
+    const setupOverlay  = document.getElementById('setupOverlay');
+    const setupError    = document.getElementById('setupError');
+    const setupSaveBtn  = document.getElementById('setupSaveBtn');
+    const setupCancelBtn= document.getElementById('setupCancelBtn');
+    const setupTitle    = document.getElementById('setupTitle');
+    const deviceIdEl    = document.getElementById('deviceId');
+    const fGatewayKey   = document.getElementById('fGatewayKey');
+    const fPqcKey       = document.getElementById('fPqcKey');
+    const fPqcSecret    = document.getElementById('fPqcSecret');
+
+    let isConfigured = false;
+
+    function showSetupError(msg) {
+        setupError.textContent = msg;
+        setupError.classList.add('show');
+    }
+    function hideSetupError() {
+        setupError.classList.remove('show');
+    }
+
+    // firstRun=true means keyring is empty → cancel not allowed.
+    // Called from the gear button (firstRun=false → cancel allowed).
+    async function openSetup(fromSettings) {
+        hideSetupError();
+        const info = await eel.get_setup_info()();
+        deviceIdEl.textContent = info.client_identifier;
+        isConfigured = info.configured;
+
+        setupTitle.textContent = isConfigured ? 'Update credentials' : 'Set up QVPN';
+        // Only allow closing without saving if credentials already exist.
+        setupCancelBtn.style.display = isConfigured ? 'inline-block' : 'none';
+
+        fGatewayKey.value = '';
+        fPqcKey.value = '';
+        fPqcSecret.value = '';
+        setupOverlay.classList.add('open');
+        fGatewayKey.focus();
+    }
+
+    function closeSetup() {
+        if (!isConfigured) return; // block closing on first run
+        setupOverlay.classList.remove('open');
+    }
+
+    async function submitSetup() {
+        hideSetupError();
+        const gk = fGatewayKey.value.trim();
+        const pk = fPqcKey.value.trim();
+        const ps = fPqcSecret.value.trim();
+        if (!gk || !pk || !ps) {
+            showSetupError('All three fields are required.');
+            return;
+        }
+
+        setupSaveBtn.disabled = true;
+        setupSaveBtn.textContent = 'Verifying…';
+        try {
+            const res = await eel.submit_setup_credentials(gk, pk, ps)();
+            if (res && res.ok) {
+                isConfigured = true;
+                setupOverlay.classList.remove('open');
+                toast('Credentials saved securely', 'success');
+            } else {
+                showSetupError((res && res.error) || 'Verification failed.');
+            }
+        } catch (e) {
+            showSetupError('Verification failed: ' + e);
+        } finally {
+            setupSaveBtn.disabled = false;
+            setupSaveBtn.textContent = 'Verify & Save';
+        }
+    }
+
+    // On launch: prompt for setup if not yet configured.
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const info = await eel.get_setup_info()();
+            if (!info.configured) {
+                openSetup(false);
+            }
+        } catch (e) {
+            // If the bridge isn't ready, fail open (button will still guard).
+            console.error('setup info failed', e);
+        }
+    });
 
 </script>
 </body>

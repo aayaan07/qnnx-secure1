@@ -3,13 +3,6 @@ import logging
 import sys
 import os
 
-# Load .env configuration
-try:
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
-except ImportError:
-    pass
-
 logger = logging.getLogger("Local_Proxy")
 
 PROXY_HOST = "127.0.0.1"

@@ -13,9 +13,10 @@ import base64
 from dataclasses import dataclass, asdict
 import eel
 
+from client import config
+from client import secrets_store
 from client.config import (
     GATEWAY_API_URL,
-    GATEWAY_API_KEY,
     GATEWAY_IP,
     GATEWAY_PORT,
     CLIENT_IDENTIFIER,
@@ -26,6 +27,9 @@ from client.config import (
     HKDF_SALT,
     HKDF_INFO,
 )
+# NOTE: GATEWAY_API_KEY is intentionally NOT imported by value — it is populated
+# at runtime from the OS credential vault, so it must be read live as
+# config.GATEWAY_API_KEY (see _perform_rest_handshake / _heartbeat_loop).
 from client.pqc_client import PQCClient, PQCServiceUnavailable, EncapsulationError
 from client.session_key import derive_session_key
 from client.system_proxy import set_system_proxy, clear_system_proxy
@@ -236,7 +240,7 @@ class QVPNClient:
 
     async def _perform_rest_handshake(self):
         """Executes the two-phase handshake against the Gateway and PQC API."""
-        headers = {"X-API-Key": GATEWAY_API_KEY}
+        headers = {"X-API-Key": config.GATEWAY_API_KEY}
 
         async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
             # Phase 1: POST /handshake/init
@@ -290,7 +294,7 @@ class QVPNClient:
         Catches CancelledError cleanly (fired by disconnect()) so it does not
         trigger an unwanted reconnect.
         """
-        headers = {"X-API-Key": GATEWAY_API_KEY}
+        headers = {"X-API-Key": config.GATEWAY_API_KEY}
         logger.info("[Heartbeat] Loop started for session=%s", self.state.session_id)
 
         consecutive_failures = 0
@@ -722,6 +726,19 @@ class QVPNClient:
         except Exception as exc:
             logger.debug("[Disconnect] Failed to update UI to disconnecting: %s", exc)
 
+        # Step 0 — cancel the connect/reconnect task BEFORE clearing the proxy.
+        # If a handshake or backoff-retry is in flight, it could otherwise complete
+        # and re-run set_system_proxy() after we've cleared it, leaving a stale
+        # proxy in the registry. Cancelling first guarantees the reconnect loop
+        # cannot re-arm the proxy during teardown.
+        try:
+            connect_task = self._connect_task
+            if connect_task and connect_task is not asyncio.current_task() and not connect_task.done():
+                connect_task.cancel()
+                await asyncio.wait([connect_task], timeout=2.0)
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to cancel connect task: %s", exc)
+
         # Step 1 — deactivate Windows system proxy
         try:
             clear_system_proxy()
@@ -834,13 +851,35 @@ def run_status_http_server(client: QVPNClient):
 global_vpn_client = QVPNClient(gateway_ip=GATEWAY_IP, gateway_port=GATEWAY_PORT)
 asyncio_loop = asyncio.new_event_loop()
 
-# Security agent — started in __main__, referenced by _emit_tunnel_event
+# Security agent — started once credentials exist, referenced by _emit_tunnel_event
 _security_agent: SecurityAgent | None = None
+_services_started: bool = False
 
 
 def run_asyncio_thread(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
+
+
+def _ensure_services_started():
+    """Start credential-dependent background services exactly once.
+
+    The security agent pushes alerts/metrics to the gateway using GATEWAY_API_KEY,
+    so it must not run until credentials are present. This is called both on
+    startup (when the vault already has secrets) and right after the setup modal
+    stores them for the first time.
+    """
+    global _security_agent, _services_started
+    if _services_started:
+        return
+    if not config.secrets_present():
+        logger.info("Credentials not configured yet — deferring security agent startup.")
+        return
+
+    _security_agent = SecurityAgent()
+    _security_agent.start()
+    logger.info("Security agent started (db=security/agent-db.db, push→gateway /api/v1/alerts)")
+    _services_started = True
 
 
 @eel.expose
@@ -861,6 +900,64 @@ def start_vpn_connection(*args, **kwargs):
 def stop_vpn_connection(*args, **kwargs):
     logger.info("UI requested tunnel disconnect.")
     asyncio.run_coroutine_threadsafe(global_vpn_client.disconnect(), asyncio_loop)
+
+
+# ==========================================
+# FIRST-RUN / CREDENTIAL SETUP (Eel bridge)
+# ==========================================
+
+@eel.expose
+def get_setup_info():
+    """Return info the setup modal needs: device id and whether setup is complete."""
+    return {
+        "client_identifier": CLIENT_IDENTIFIER,
+        "configured": config.secrets_present(),
+        "gateway_api_url": GATEWAY_API_URL,
+        "pqc_api_url": PQC_API_URL,
+    }
+
+
+@eel.expose
+def submit_setup_credentials(gateway_api_key, pqc_api_key, pqc_signing_secret):
+    """Verify the three secrets against the live services, then store them.
+
+    Returns {"ok": True} on success or {"ok": False, "error": "..."} on failure.
+    The UI keeps the modal open and shows the error message on failure.
+    """
+    gateway_api_key = (gateway_api_key or "").strip()
+    pqc_api_key = (pqc_api_key or "").strip()
+    pqc_signing_secret = (pqc_signing_secret or "").strip()
+
+    try:
+        secrets_store.verify_credentials(
+            gateway_api_url=GATEWAY_API_URL,
+            pqc_api_url=PQC_API_URL,
+            client_identifier=CLIENT_IDENTIFIER,
+            gateway_api_key=gateway_api_key,
+            pqc_api_key=pqc_api_key,
+            pqc_signing_secret=pqc_signing_secret,
+        )
+    except ValueError as exc:
+        logger.warning("Credential verification failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 — surface any unexpected error to the UI
+        logger.error("Unexpected error verifying credentials: %s", exc)
+        return {"ok": False, "error": f"Unexpected error: {exc}"}
+
+    secrets_store.store_credentials(gateway_api_key, pqc_api_key, pqc_signing_secret)
+    config.reload_secrets()
+
+    # Start background services now that credentials exist (first-run path).
+    _ensure_services_started()
+    return {"ok": True}
+
+
+@eel.expose
+def clear_credentials():
+    """Remove stored credentials (used by the settings 'reset' action)."""
+    secrets_store.clear_credentials()
+    config.reload_secrets()
+    return {"ok": True}
 
 
 # ==========================================
@@ -897,10 +994,13 @@ signal.signal(signal.SIGTERM, sig_handler)
 # ==========================================
 
 if __name__ == "__main__":
-    # Start security agent (daemon threads: sysmon, USB, Windows log monitor, retry pusher)
-    _security_agent = SecurityAgent()
-    _security_agent.start()
-    logger.info("Security agent started (db=security/agent-db.db, push→gateway /api/v1/alerts)")
+    # Start credential-dependent services (security agent) only if the OS vault
+    # already holds valid secrets. On first run this is a no-op; the setup modal
+    # calls _ensure_services_started() after storing verified credentials.
+    if config.secrets_present():
+        _ensure_services_started()
+    else:
+        logger.info("No stored credentials — UI will prompt for setup on first launch.")
 
     # Start status HTTP server in a daemon thread
     status_thread = threading.Thread(target=run_status_http_server, args=(global_vpn_client,), daemon=True)

@@ -56,10 +56,12 @@ def sign_request(
 
 class PQCClient:
     def __init__(self, api_url: str = None, api_key: str = None, signing_secret: str = None):
-        from client.config import PQC_API_URL, PQC_API_KEY, PQC_SIGNING_SECRET
-        self.api_url = api_url or PQC_API_URL
-        self.api_key = api_key or PQC_API_KEY
-        self.signing_secret = signing_secret or PQC_SIGNING_SECRET
+        # Read secrets live from the config module — they are populated at runtime
+        # from the OS credential vault, so they must not be captured at import time.
+        from client import config
+        self.api_url = api_url or config.PQC_API_URL
+        self.api_key = api_key or config.PQC_API_KEY
+        self.signing_secret = signing_secret or config.PQC_SIGNING_SECRET
 
     async def encapsulate(self, algorithm: str, public_key_bytes: bytes) -> tuple[bytes, bytes]:
         """

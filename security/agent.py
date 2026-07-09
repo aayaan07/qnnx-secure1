@@ -53,7 +53,10 @@ try:
 except ImportError:
     _WIN32_AVAILABLE = False
 
-from client.config import GATEWAY_API_URL, GATEWAY_API_KEY, CLIENT_IDENTIFIER
+from client import config
+from client.config import GATEWAY_API_URL, CLIENT_IDENTIFIER
+# GATEWAY_API_KEY is read live via config.GATEWAY_API_KEY (loaded at runtime from
+# the OS credential vault), never captured at import time.
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -233,8 +236,12 @@ class GatewayAlertPusher:
 
     def __init__(self, store: SQLiteStore):
         self._store = store
-        self._headers = {
-            "X-API-Key": GATEWAY_API_KEY,
+
+    @property
+    def _headers(self) -> dict:
+        # Built live so credential updates take effect without a restart.
+        return {
+            "X-API-Key": config.GATEWAY_API_KEY,
             "Content-Type": "application/json",
         }
 
@@ -288,8 +295,12 @@ class GatewayMetricsPusher:
     def __init__(self):
         self._lock     = threading.Lock()
         self._readings: list[dict] = []
-        self._headers  = {
-            "X-API-Key":    GATEWAY_API_KEY,
+
+    @property
+    def _headers(self) -> dict:
+        # Built live so credential updates take effect without a restart.
+        return {
+            "X-API-Key":    config.GATEWAY_API_KEY,
             "Content-Type": "application/json",
         }
 
