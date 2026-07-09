@@ -15,9 +15,9 @@ Responsibilities:
 Push flow:
   Alert generated
       ↓
-  LocalLogWriter  →  agent-db.db  (always, offline resilience)
+  LocalLogWriter  ->  agent-db.db  (always, offline resilience)
       ↓
-  GatewayAlertPusher  →  POST /api/v1/alerts  (best-effort, retried)
+  GatewayAlertPusher  ->  POST /api/v1/alerts  (best-effort, retried)
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ SYSTEM_POLL_INTERVAL_SECONDS = 5.0   # CPU/RAM/disk poll cadence
 
 # Spike detection: alert when reading jumps this many percentage points
 # above the rolling baseline in a single poll
-CPU_SPIKE_DELTA_PCT  = 30.0   # e.g. 40 % → 72 % in one tick
+CPU_SPIKE_DELTA_PCT  = 30.0   # e.g. 40 % -> 72 % in one tick
 RAM_SPIKE_DELTA_PCT  = 20.0
 
 # Absolute thresholds (regardless of baseline)
@@ -113,6 +113,7 @@ ALLOWED_BACKGROUND_PROCESSES = [
     "\\zoom\\bin\\zoom.exe",
     "\\appdata\\local\\discord\\",
     "\\appdata\\local\\microsoft\\onedrive\\",
+    "git.exe",
 ]
 
 # Gateway push
@@ -137,7 +138,7 @@ class SecurityAlert:
 
 
 # ---------------------------------------------------------------------------
-# Local log writer  (JSONL file → SQLite)
+# Local log writer  (JSONL file -> SQLite)
 # ---------------------------------------------------------------------------
 class LocalLogWriter:
     """Thread-safe append-only log. Records are flushed to SQLite by SQLiteStore."""
@@ -272,9 +273,9 @@ class GatewayAlertPusher:
             if resp.status_code in (200, 201):
                 self._store.mark_pushed(alert["alert_id"])
                 return True
-            log.warning("[Agent→GW] Push failed HTTP %d for alert %s", resp.status_code, alert["alert_id"])
+            log.warning("[Agent->GW] Push failed HTTP %d for alert %s", resp.status_code, alert["alert_id"])
         except Exception as exc:
-            log.warning("[Agent→GW] Push error for alert %s: %s", alert["alert_id"], exc)
+            log.warning("[Agent->GW] Push error for alert %s: %s", alert["alert_id"], exc)
         return False
 
     def retry_unpushed(self) -> None:
@@ -282,7 +283,7 @@ class GatewayAlertPusher:
         pending = self._store.get_unpushed()
         if not pending:
             return
-        log.info("[Agent→GW] Retrying %d unpushed alert(s)...", len(pending))
+        log.info("[Agent->GW] Retrying %d unpushed alert(s)...", len(pending))
         for alert in pending:
             self.push(alert)
 
@@ -334,11 +335,11 @@ class GatewayMetricsPusher:
                 trust_env=False,
             )
             if resp.status_code == 201:
-                log.info("[Agent→GW] Pushed %d metric reading(s).", len(batch))
+                log.info("[Agent->GW] Pushed %d metric reading(s).", len(batch))
             else:
-                log.warning("[Agent→GW] Metrics push HTTP %d — %s", resp.status_code, resp.text[:200])
+                log.warning("[Agent->GW] Metrics push HTTP %d — %s", resp.status_code, resp.text[:200])
         except Exception as exc:
-            log.warning("[Agent→GW] Metrics push error: %s", exc)
+            log.warning("[Agent->GW] Metrics push error: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -353,8 +354,8 @@ class SystemMonitor:
     Polls system resources every SYSTEM_POLL_INTERVAL_SECONDS (5 s).
 
     Alert logic:
-      - Absolute threshold breach  → emit alert at appropriate severity
-      - Sudden spike above rolling baseline  → emit SPIKE alert
+      - Absolute threshold breach  -> emit alert at appropriate severity
+      - Sudden spike above rolling baseline  -> emit SPIKE alert
       - Re-alerts only when severity level changes (avoids flood)
 
     Every METRIC_FLUSH_INTERVAL_TICKS polls (30 s) the accumulated readings
@@ -450,7 +451,7 @@ class SystemMonitor:
             if cpu - baseline_avg >= CPU_SPIKE_DELTA_PCT and cpu >= CPU_WARN_PCT:
                 self._emit(
                     "CPU_SPIKE", "HIGH",
-                    f"Sudden CPU spike detected: {baseline_avg:.1f}% → {cpu:.1f}% "
+                    f"Sudden CPU spike detected: {baseline_avg:.1f}% -> {cpu:.1f}% "
                     f"(+{cpu - baseline_avg:.1f}%)",
                 )
 
@@ -485,7 +486,7 @@ class SystemMonitor:
             if ram - baseline_avg >= RAM_SPIKE_DELTA_PCT and ram >= RAM_HIGH_PCT:
                 self._emit(
                     "RAM_SPIKE", "HIGH",
-                    f"Sudden RAM spike detected: {baseline_avg:.1f}% → {ram:.1f}% "
+                    f"Sudden RAM spike detected: {baseline_avg:.1f}% -> {ram:.1f}% "
                     f"(+{ram - baseline_avg:.1f}%)",
                 )
 
@@ -519,15 +520,49 @@ class SystemMonitor:
     # -- Restricted processes ----------------------------------------------
 
     def _check_restricted_processes(self):
-        for proc in psutil.process_iter(["pid", "name"]):
+        # Known safe parent processes for voluntarily opened terminals
+        safe_parents = {
+            "explorer.exe", "code.exe", "cursor.exe", "pycharm64.exe", 
+            "devenv.exe", "windowsterminal.exe", "idea64.exe"
+        }
+        # Suspicious command line flags commonly used by malware/background scripts
+        suspicious_flags = {
+            "-windowstyle hidden", "-w hidden", "-encodedcommand", "-ec", 
+            "-nop", "-noninteractive", "-bypass"
+        }
+
+        for proc in psutil.process_iter(["pid", "name", "ppid"]):
             try:
-                name = proc.info["name"].lower()
+                name = proc.info["name"].lower() if proc.info["name"] else ""
                 pid  = proc.info["pid"]
+                
                 if name in RESTRICTED_PROCESSES and pid not in self._alerted_pids:
-                    self._emit(
-                        "RESTRICTED_PROCESS", "CRITICAL",
-                        f"Restricted process detected: {name} (PID {pid})",
-                    )
+                    is_suspicious = True
+                    
+                    try:
+                        parent = psutil.Process(proc.info["ppid"])
+                        parent_name = parent.name().lower()
+                        
+                        cmdline_list = proc.cmdline()
+                        cmdline = " ".join(cmdline_list).lower() if cmdline_list else ""
+                        
+                        has_suspicious_flags = any(flag in cmdline for flag in suspicious_flags)
+                        
+                        # If launched interactively by a user and no hidden/malicious flags exist, it's safe
+                        if parent_name in safe_parents and not has_suspicious_flags:
+                            is_suspicious = False
+                            
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        # If we can't inspect the parent or cmdline, assume it's suspicious
+                        pass
+                        
+                    if is_suspicious:
+                        self._emit(
+                            "RESTRICTED_PROCESS", "CRITICAL",
+                            f"Suspicious restricted process detected: {name} (PID {pid})",
+                        )
+                    
+                    # Always mark as checked so we don't spam checks for the same PID
                     self._alerted_pids.add(pid)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
@@ -745,7 +780,7 @@ class QVPNThreatEngine:
         # 2. Attempt immediate gateway push
         pushed = self._pusher.push(record)
         log.info(
-            "[Alert] [%s] %s → gateway:%s",
+            "[Alert] [%s] %s -> gateway:%s",
             severity, alert.description, "OK" if pushed else "queued",
         )
         if severity != "INFO":
@@ -782,7 +817,7 @@ class QVPNThreatEngine:
         elif event_type == "IP_CHANGE":
             old_ip = details.get("old_ip", "?")
             new_ip = details.get("new_ip", "?")
-            self.emit_alert("IP_CHANGE", "MEDIUM", f"IP change for {client_id}: {old_ip} → {new_ip}")
+            self.emit_alert("IP_CHANGE", "MEDIUM", f"IP change for {client_id}: {old_ip} -> {new_ip}")
 
     def process_gateway_event(self, event: dict):
         """Feed gateway-side events (brute-force, DoS) into the threat engine."""

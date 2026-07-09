@@ -131,7 +131,7 @@ def _build_device_body(client_identifier: str, events: list) -> dict:
     return {"client_identifier": client_identifier, "events": device_events}
 
 
-# Maps event_type → (api_path_suffix, body_builder)
+# Maps event_type -> (api_path_suffix, body_builder)
 _ENDPOINT_ROUTING: dict[str, tuple[str, callable]] = {
     "SYSTEM_METRICS":        ("agent/metrics",   _build_metrics_body),
     "USER_ACTIVITY":         ("agent/activity",  _build_activity_body),
@@ -335,7 +335,7 @@ class WindowsAgent:
         )
 
         logger.info(
-            f"Uploading → {url} | "
+            f"Uploading -> {url} | "
             f"events={event_count} | payload={payload_bytes} bytes"
         )
 
@@ -450,7 +450,7 @@ class WindowsAgent:
                 batches  = self._chunked_batches(evs)
 
                 logger.info(
-                    f"{path_suffix}: {len(evs)} event(s) → "
+                    f"{path_suffix}: {len(evs)} event(s) -> "
                     f"{len(batches)} batch(es)"
                 )
 
@@ -681,7 +681,7 @@ async def agent_main_loop(agent: WindowsAgent):
             await agent.poll_public_ip()
             last_ip = now
 
-        # 4. Push queued events to Gateway (grouped by type → correct endpoint)
+        # 4. Push queued events to Gateway (grouped by type -> correct endpoint)
         await agent.push_queued_events()
 
         # Short sleep to prevent busy loop
