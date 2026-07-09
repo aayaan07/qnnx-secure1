@@ -249,6 +249,10 @@ class GatewayAlertPusher:
 
     def push(self, alert: dict) -> bool:
         """Push a single alert. Returns True on success."""
+        # No gateway API key yet (credentials not configured) — keep the alert
+        # queued locally; it will be retried once the vault holds a key.
+        if not config.GATEWAY_API_KEY:
+            return False
         payload = {
             "alert_id":    alert["alert_id"],
             "client_id":   alert["client_id"],
@@ -316,6 +320,10 @@ class GatewayMetricsPusher:
             })
 
     def flush(self) -> None:
+        # No gateway API key yet (credentials not configured) — skip; metrics are
+        # best-effort telemetry and are not retried.
+        if not config.GATEWAY_API_KEY:
+            return
         with self._lock:
             if not self._readings:
                 return
