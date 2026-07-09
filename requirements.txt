@@ -14,6 +14,8 @@ SQLAlchemy==2.0.51
 typing_extensions==4.15.0
 zope.event==6.2
 zope.interface==8.5
-httpx
-pydantic
-python-dotenv
+httpx==0.28.1
+pydantic==2.13.4
+python-dotenv==1.2.2
+wmi
+pywin32

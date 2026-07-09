@@ -47,16 +47,20 @@ def set_system_proxy(proxy_address: str) -> None:
 
 def clear_system_proxy() -> None:
     """
-    Write to Windows Registry to disable system proxy.
+    Write to Windows Registry to disable system proxy and remove the proxy URL.
     Path: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings
       - ProxyEnable = 0
+      - ProxyServer (deleted)
     """
     try:
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-        # Open registry key for writing
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
             winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 0)
-        logger.info("System proxy registry values updated: ProxyEnable=0")
+            try:
+                winreg.DeleteValue(key, "ProxyServer")
+            except FileNotFoundError:
+                pass  # already absent
+        logger.info("System proxy disabled and ProxyServer registry value removed.")
         _refresh_system()
     except Exception as e:
         logger.error(f"Failed to disable system proxy in registry: {e}", exc_info=True)

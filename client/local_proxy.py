@@ -10,16 +10,12 @@ try:
 except ImportError:
     pass
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - [LocalProxy] - %(levelname)s - %(message)s")
 logger = logging.getLogger("Local_Proxy")
 
 PROXY_HOST = "127.0.0.1"
 PROXY_PORT = 8080
 QVPN_CLIENT_HOST = "127.0.0.1"
 QVPN_CLIENT_PORT = 8282
-
-DEBUG_GATEWAY = os.getenv("DEBUG_GATEWAY", "false").lower() == "true"
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     """Handles a single connection from a browser or application client."""
@@ -107,131 +103,79 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             writer.close()
             return
             
-        # 3. Connect to the target destination (direct or via QVPN Client)
-        if DEBUG_GATEWAY:
+        # 3. Connect to the target destination via QVPN Client
+        try:
+            logger.info(f"Connecting to QVPN Client at {QVPN_CLIENT_HOST}:{QVPN_CLIENT_PORT} for target {host}:{port}")
+            qv_reader, qv_writer = await asyncio.open_connection(QVPN_CLIENT_HOST, QVPN_CLIENT_PORT)
+            qvpn_writer = qv_writer
+        except Exception as e:
+            logger.error(f"QVPN Client is unreachable: {e}")
+            await send_502_bad_gateway(writer)
+            return
+
+        # 4. Transmit the target destination header (e.g. "google.com:443\n")
+        dest_header = f"{host}:{port}\n".encode("utf-8")
+        qv_writer.write(dest_header)
+        await qv_writer.drain()
+
+        # 5. Read confirmation from QVPN Client
+        response_line = await asyncio.wait_for(qv_reader.readline(), timeout=15.0)
+        if response_line.strip() != b"OK":
+            logger.error(f"QVPN Client rejected connection: {response_line.decode('utf-8').strip()}")
+            await send_502_bad_gateway(writer)
             try:
-                logger.info(f"[DEBUG_GATEWAY] Connecting directly to internet target {host}:{port}")
-                target_reader, target_writer = await asyncio.open_connection(host, port)
-                qvpn_writer = target_writer
-            except Exception as e:
-                logger.error(f"[DEBUG_GATEWAY] Connection directly to {host}:{port} failed: {e}")
-                await send_502_bad_gateway(writer)
-                return
+                qv_writer.close()
+                await qv_writer.wait_closed()
+            except Exception:
+                pass
+            return
 
-            # Establish data pipe
-            if method.upper() == "CONNECT":
-                # Respond to browser that the tunnel is established
-                writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-                await writer.drain()
-            else:
-                # Forward the initial HTTP request buffer to target
-                target_writer.write(header_data)
-                await target_writer.drain()
-
-            # Bi-directional pipe
-            async def pipe_client_to_target():
-                try:
-                    while True:
-                        data = await reader.read(8192)
-                        if not data:
-                            break
-                        target_writer.write(data)
-                        await target_writer.drain()
-                except Exception as ex:
-                    logger.debug(f"Pipe client -> target error: {ex}")
-                finally:
-                    try:
-                        target_writer.close()
-                        await target_writer.wait_closed()
-                    except Exception:
-                        pass
-
-            async def pipe_target_to_client():
-                try:
-                    while True:
-                        data = await target_reader.read(8192)
-                        if not data:
-                            break
-                        writer.write(data)
-                        await writer.drain()
-                except Exception as ex:
-                    logger.debug(f"Pipe target -> client error: {ex}")
-                finally:
-                    try:
-                        writer.close()
-                        await writer.wait_closed()
-                    except Exception:
-                        pass
-
-            await asyncio.gather(pipe_client_to_target(), pipe_target_to_client())
+        # 6. Establish data pipe
+        if method.upper() == "CONNECT":
+            # Respond to browser that the tunnel is established
+            writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            await writer.drain()
         else:
-            try:
-                logger.info(f"Connecting to QVPN Client at {QVPN_CLIENT_HOST}:{QVPN_CLIENT_PORT} for target {host}:{port}")
-                qv_reader, qv_writer = await asyncio.open_connection(QVPN_CLIENT_HOST, QVPN_CLIENT_PORT)
-                qvpn_writer = qv_writer
-            except Exception as e:
-                logger.error(f"QVPN Client is unreachable: {e}")
-                await send_502_bad_gateway(writer)
-                return
-                
-            # 4. Transmit the target destination header (e.g. "google.com:443\n")
-            dest_header = f"{host}:{port}\n".encode("utf-8")
-            qv_writer.write(dest_header)
+            # Forward the initial HTTP request buffer (which we already read) to QVPN Client
+            qv_writer.write(header_data)
             await qv_writer.drain()
-            
-            # 5. Read confirmation from QVPN Client
-            response_line = await qv_reader.readline()
-            if response_line != b"OK\n":
-                logger.error(f"QVPN Client rejected connection or returned error: {response_line.decode('utf-8').strip()}")
-                await send_502_bad_gateway(writer)
-                return
-                
-            # 6. Establish data pipe
-            if method.upper() == "CONNECT":
-                # Respond to browser that the tunnel is established
-                writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-                await writer.drain()
-            else:
-                # Forward the initial HTTP request buffer (which we already read) to QVPN Client
-                qv_writer.write(header_data)
-                await qv_writer.drain()
-                
-            # Bi-directional pipe
-            async def pipe_client_to_qvpn():
+
+        # Bi-directional pipe
+        async def pipe_client_to_qvpn():
+            try:
+                while True:
+                    data = await reader.read(65536)
+                    if not data:
+                        break
+                    qv_writer.write(data)
+                    await qv_writer.drain()
+            except Exception as ex:
+                logger.debug(f"Pipe client -> QVPN error: {ex}")
+            finally:
                 try:
-                    while True:
-                        data = await reader.read(8192)
-                        if not data:
-                            break
-                        qv_writer.write(data)
-                        await qv_writer.drain()
-                except Exception as ex:
-                    logger.debug(f"Pipe client -> QVPN error: {ex}")
-                finally:
-                    try:
-                        qv_writer.close()
-                        await qv_writer.wait_closed()
-                    except Exception:
-                        pass
-                    
-            async def pipe_qvpn_to_client():
+                    qv_writer.close()
+                    await qv_writer.wait_closed()
+                except Exception:
+                    pass
+
+        async def pipe_qvpn_to_client():
+            try:
+                while True:
+                    data = await qv_reader.read(65536)
+                    if not data:
+                        break
+                    writer.write(data)
+                    await writer.drain()
+            except Exception as ex:
+                logger.debug(f"Pipe QVPN -> client error: {ex}")
+            finally:
                 try:
-                    while True:
-                        data = await qv_reader.read(8192)
-                        if not data:
-                            break
-                        writer.write(data)
-                        await writer.drain()
-                except Exception as ex:
-                    logger.debug(f"Pipe QVPN -> client error: {ex}")
-                finally:
-                    try:
-                        writer.close()
-                        await writer.wait_closed()
-                    except Exception:
-                        pass
-                    
-            await asyncio.gather(pipe_client_to_qvpn(), pipe_qvpn_to_client())
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+
+        await asyncio.gather(pipe_client_to_qvpn(), pipe_qvpn_to_client())
         
     except (ConnectionResetError, ConnectionAbortedError, OSError) as e:
         logger.info(f"Client connection reset or closed: {e}")
@@ -275,15 +219,14 @@ async def send_502_bad_gateway(writer: asyncio.StreamWriter):
         writer.close()
 
 async def main():
-    server = await asyncio.start_server(handle_client, PROXY_HOST, PROXY_PORT)
+    server = await asyncio.start_server(
+        handle_client,
+        PROXY_HOST,
+        PROXY_PORT,
+        limit=262144,  # 256 KB stream reader buffer
+    )
     logger.info(f"Local HTTP/HTTPS Proxy listening on http://{PROXY_HOST}:{PROXY_PORT}")
-    if DEBUG_GATEWAY:
-        logger.warning("=" * 60)
-        logger.warning("⚠  DEBUG_GATEWAY MODE ENABLED")
-        logger.warning("⚠  Proxy connects directly to the internet (bypassing VPN).")
-        logger.warning("=" * 60)
-    else:
-        logger.info(f"Ensure your browser proxy is configured to use {PROXY_HOST}:{PROXY_PORT}")
+    logger.info(f"Ensure your browser proxy is configured to use {PROXY_HOST}:{PROXY_PORT}")
     async with server:
         await server.serve_forever()
 

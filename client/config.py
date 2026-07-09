@@ -3,110 +3,59 @@ import sys
 import logging
 from cryptography.hazmat.primitives import hashes
 
-# Load .env from the project root (qvpn-client/) so that env vars are available
-# to os.getenv() calls below even when the process is not started with explicit
-# environment variables set.
+def get_writeable_app_dir(app_name="QVPN"):
+    """
+    Returns a secure, writeable path for application data on Windows.
+    Defaults to %LOCALAPPDATA% (per-user) or falls back to %ProgramData% (machine-wide).
+    """
+    base_dir = os.environ.get("LOCALAPPDATA") or os.environ.get("PROGRAMDATA")
+    if not base_dir:
+        base_dir = os.path.expanduser("~")
+    app_dir = os.path.join(base_dir, app_name)
+    os.makedirs(app_dir, exist_ok=True)
+    return app_dir
+
+writeable_dir = get_writeable_app_dir("QVPN")
+DB_PATH = os.path.join(writeable_dir, "qvpn_threats.db")
+LOG_PATH = os.path.join(writeable_dir, "gateway.log")
+
+# Determine the correct root directory based on whether it's running as an .exe or script
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 try:
     from dotenv import load_dotenv as _load_dotenv
-    _load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+    _load_dotenv(dotenv_path=os.path.join(application_path, ".env"))
 except ImportError:
     pass  # python-dotenv not installed — rely on OS environment variables
 
 logger = logging.getLogger("QVPN_Config")
 
 # Gateway API Configuration
-GATEWAY_API_URL = os.getenv("GATEWAY_API_URL", "http://localhost:8001/api/v1").rstrip("/")
-GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "qvpn_live_k3QkE7APJgFTpXEafOzeLR3NYDie0wHP-IOGn_JE0Og")
-CLIENT_IDENTIFIER = os.getenv("CLIENT_IDENTIFIER", "test-client-1")
+GATEWAY_API_URL = os.getenv("GATEWAY_API_URL", "").rstrip("/")
+GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY")
+GATEWAY_IP = os.getenv("GATEWAY_IP", "127.0.0.1")
+GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "5151"))
+CLIENT_IDENTIFIER = os.getenv("CLIENT_IDENTIFIER", "")
 
-# PQC API Configuration (pointing to Sentinel production by default)
-PQC_API_URL = os.getenv("PQC_API_URL", "https://qnnx-sentinel-production.up.railway.app/api/v1").rstrip("/")
-# API Key and signing secret for the PQC API (QNNX Sentinel)
-PQC_API_KEY = os.getenv("PQC_API_KEY", "qnnx_T-jfvqServyQKVNp0IjvPB0PG9C8KvZTzoBiLCQg2ks")
-PQC_SIGNING_SECRET = os.getenv("PQC_SIGNING_SECRET", "qnnxsig_JtRadgK84riOp73H4nwxz6N11Hph6TzHObGkxbotdAo")
+# PQC API Configuration
+PQC_API_URL = os.getenv("PQC_API_URL", "").rstrip("/")
+PQC_API_KEY = os.getenv("PQC_API_KEY")
+PQC_SIGNING_SECRET = os.getenv("PQC_SIGNING_SECRET")
+
+# Local proxy and UI
+LOCAL_PROXY_ADDRESS = os.getenv("LOCAL_PROXY_ADDRESS", "127.0.0.1:8080")
+EEL_PORT = int(os.getenv("EEL_PORT", "8085"))
 
 # HKDF parameters (Shared parameters for key derivation)
 # Dynamically load from Gateway shared config if possible, fallback to Gateway defaults
 HKDF_SALT = None
 HKDF_INFO = None
 
-try:
-    # Try importing app.core.config by adding the gateway directory to sys.path
-    GATEWAY_DIR = os.environ.get(
-        "GATEWAY_PATH" # Local dev default
-    )
-    if os.path.exists(GATEWAY_DIR) and GATEWAY_DIR not in sys.path:
-        sys.path.insert(0, GATEWAY_DIR)
-    
-    from app.core.config import settings
-    HKDF_SALT = settings.HKDF_SALT
-    HKDF_INFO = settings.HKDF_INFO
-except Exception as e:
-    # Fallback to Gateway's default parameters
-    HKDF_SALT = b"qvpn-hkdf-salt-v1"
-    HKDF_INFO = b"qvpn-tunnel-key-v1"
+HKDF_SALT = b"qvpn-hkdf-salt-v1"
+HKDF_INFO = b"qvpn-tunnel-key-v1"
 
 HKDF_KEY_LENGTH = 32
 HKDF_ALGORITHM = hashes.SHA256()
-
-# ---------------------------------------------------------------------------
-# PQC Debug Mode — bypass all PQC operations for local testing
-#
-# Set DEBUG_MODE_PQC=true in the environment to skip the ML-KEM key exchange
-# and use MASTER_KEY directly as the 32-byte AES-256 session key.
-#
-# MASTER_KEY must be a 64-character hex string (32 bytes).
-# Example: MASTER_KEY=0011223344556677...  (64 hex chars)
-#
-# WARNING: Never enable debug mode in production.
-# ---------------------------------------------------------------------------
-
-DEBUG_MODE_PQC: bool = os.getenv("DEBUG_MODE_PQC", "false").lower() == "true"
-_MASTER_KEY_HEX: str = os.getenv("MASTER_KEY", "")
-
-if DEBUG_MODE_PQC:
-    logger.warning("=" * 60)
-    logger.warning("⚠  PQC DEBUG MODE ENABLED")
-    logger.warning("⚠  PQC key exchange is BYPASSED.")
-    logger.warning("⚠  MASTER_KEY is used for AES-GCM encryption.")
-    logger.warning("⚠  DO NOT use this mode in production.")
-    logger.warning("=" * 60)
-
-    if not _MASTER_KEY_HEX:
-        logger.error(
-            "STARTUP FAIL: DEBUG_MODE_PQC=true but MASTER_KEY is not set. "
-            "Set MASTER_KEY to a 64-character hex string (32 bytes)."
-        )
-        sys.exit(1)
-
-    try:
-        MASTER_KEY_BYTES: bytes = bytes.fromhex(_MASTER_KEY_HEX)
-    except ValueError:
-        logger.error(
-            "STARTUP FAIL: MASTER_KEY is not valid hex. "
-            "Provide exactly 64 hex characters (32 bytes)."
-        )
-        sys.exit(1)
-
-    if len(MASTER_KEY_BYTES) != 32:
-        logger.error(
-            "STARTUP FAIL: MASTER_KEY must be exactly 32 bytes (64 hex chars), "
-            "got %d bytes (%d hex chars).",
-            len(MASTER_KEY_BYTES),
-            len(_MASTER_KEY_HEX),
-        )
-        sys.exit(1)
-
-    logger.warning("MASTER_KEY validated: 32 bytes loaded. (Key value is NOT logged.)")
-else:
-    MASTER_KEY_BYTES: bytes = b""
-
-DEBUG_AES: bool = os.getenv("DEBUG_AES", "false").lower() == "true"
-
-if DEBUG_AES:
-    logger.warning("=" * 60)
-    logger.warning("⚠  AES DEBUG MODE ENABLED")
-    logger.warning("⚠  AES encryption and decryption are BYPASSED.")
-    logger.warning("⚠  Traffic is sent completely unencrypted (plaintext).")
-    logger.warning("⚠  DO NOT use this mode in production.")
-    logger.warning("=" * 60)

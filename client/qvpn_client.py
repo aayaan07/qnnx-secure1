@@ -16,21 +16,33 @@ import eel
 from client.config import (
     GATEWAY_API_URL,
     GATEWAY_API_KEY,
+    GATEWAY_IP,
+    GATEWAY_PORT,
     CLIENT_IDENTIFIER,
     PQC_API_URL,
+    LOCAL_PROXY_ADDRESS,
+    EEL_PORT,
     HKDF_ALGORITHM,
     HKDF_SALT,
     HKDF_INFO,
-    DEBUG_MODE_PQC,
-    MASTER_KEY_BYTES,
-    DEBUG_AES,
+    LOG_PATH,
 )
 from client.pqc_client import PQCClient, PQCServiceUnavailable, EncapsulationError
 from client.session_key import derive_session_key
 from client.system_proxy import set_system_proxy, clear_system_proxy
+from client.local_proxy import handle_client as _http_proxy_handle_client
+from security.agent import SecurityAgent
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - [QVPN] - %(levelname)s - %(message)s")
+handlers = [logging.FileHandler(LOG_PATH)]
+if sys.stdout is not None:
+    handlers.append(logging.StreamHandler(sys.stdout))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - [QVPN] - %(levelname)s - %(message)s",
+    handlers=handlers
+)
 logger = logging.getLogger("QVPN_Client")
 
 # Maximum seconds allowed for each blocking step of the gateway session-resumption handshake.
@@ -81,6 +93,8 @@ class QVPNClient:
         self._heartbeat_task: asyncio.Task | None = None
         self._local_server: asyncio.Server | None = None
         self._local_server_task: asyncio.Task | None = None
+        self._http_proxy_server: asyncio.Server | None = None
+        self._http_proxy_task: asyncio.Task | None = None
 
         # Signals when port 8282 is actually bound and ready to accept connections.
         # Prevents RC-3: system proxy being activated before the local server is listening.
@@ -109,6 +123,12 @@ class QVPNClient:
             "details": details or {}
         }
         logger.warning(f"TUNNEL EVENT: {json.dumps(event_payload)}")
+        # Forward to security agent for threat detection and alerting
+        if _security_agent:
+            _security_agent.notify_tunnel_event(event_type, {
+                "client_id": self.state.client_id,
+                **(details or {}),
+            })
 
     # -------------------------------------------------------------------------
     # Connection lifecycle
@@ -169,6 +189,10 @@ class QVPNClient:
                     self._local_server_task = asyncio.create_task(
                         self._start_local_data_server(), name="local_server"
                     )
+                    # Start HTTP/HTTPS proxy server (port 8080) in the same loop.
+                    self._http_proxy_task = asyncio.create_task(
+                        self._start_http_proxy_server(), name="http_proxy"
+                    )
                     try:
                         await asyncio.wait_for(
                             asyncio.shield(self._local_server_ready.wait()),
@@ -182,7 +206,7 @@ class QVPNClient:
 
                     # Activate Windows system proxy AFTER the local server is ready
                     try:
-                        set_system_proxy("127.0.0.1:8080")
+                        set_system_proxy(LOCAL_PROXY_ADDRESS)
                     except Exception as exc:
                         logger.error("Failed to set system proxy: %s", exc)
 
@@ -220,28 +244,7 @@ class QVPNClient:
     # -------------------------------------------------------------------------
 
     async def _perform_rest_handshake(self):
-        """
-        Executes the two-phase handshake against the Gateway and PQC API.
-
-        In PQC debug mode (DEBUG_MODE_PQC=true) the entire handshake is skipped.
-        A random session_id is generated locally and MASTER_KEY_BYTES is used
-        directly as the AES-256 session key — no PQC API calls are made.
-        """
-        if DEBUG_MODE_PQC:
-            # ── DEBUG MODE ──────────────────────────────────────────────────────
-            # Bypass all PQC operations. Generate a random session_id and use
-            # MASTER_KEY_BYTES as the AES-256 session key.
-            self.state.session_id = str(uuid.uuid4())
-            self._session_key = MASTER_KEY_BYTES
-            self._kem_ciphertext = None
-            logger.warning(
-                "[DEBUG] PQC handshake bypassed. session_id=%s — "
-                "MASTER_KEY is used as session key. (Key value NOT logged.)",
-                self.state.session_id,
-            )
-            return
-
-        # ── NORMAL MODE ─────────────────────────────────────────────────────────
+        """Executes the two-phase handshake against the Gateway and PQC API."""
         headers = {"X-API-Key": GATEWAY_API_KEY}
 
         async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
@@ -293,14 +296,9 @@ class QVPNClient:
         """
         Periodically POST to the Gateway heartbeat endpoint.
 
-        Disabled in PQC debug mode because there is no real session row in the DB.
         Catches CancelledError cleanly (fired by disconnect()) so it does not
         trigger an unwanted reconnect.
         """
-        if DEBUG_MODE_PQC:
-            logger.warning("[DEBUG] Heartbeat loop disabled in PQC debug mode.")
-            return
-
         headers = {"X-API-Key": GATEWAY_API_KEY}
         logger.info("[Heartbeat] Loop started for session=%s", self.state.session_id)
 
@@ -389,7 +387,10 @@ class QVPNClient:
 
         try:
             self._local_server = await asyncio.start_server(
-                self._handle_proxy_connection, "127.0.0.1", 8282
+                self._handle_proxy_connection,
+                "127.0.0.1",
+                8282,
+                limit=262144,  # 256 KB stream reader buffer for VPN throughput
             )
             # Signal readiness BEFORE entering serve_forever so connect() can proceed
             self._local_server_ready.set()
@@ -401,6 +402,38 @@ class QVPNClient:
         except Exception as exc:
             logger.error("Local proxy server failed: %s", exc)
             self._local_server_ready.set()  # unblock connect() even on failure
+
+    async def _start_http_proxy_server(self):
+        """
+        Start the HTTP/HTTPS proxy server on 127.0.0.1:8080.
+
+        Uses local_proxy.handle_client directly so no separate process is needed.
+        If the port is already in use (e.g. from a previous run that didn't clean up),
+        logs a warning and returns — the existing listener will still work.
+        """
+        if self._http_proxy_server and self._http_proxy_server.is_serving():
+            logger.info("HTTP proxy already listening on 127.0.0.1:8080")
+            return
+
+        try:
+            self._http_proxy_server = await asyncio.start_server(
+                _http_proxy_handle_client,
+                "127.0.0.1",
+                8080,
+                limit=262144,
+            )
+            logger.info("HTTP/HTTPS proxy listening on 127.0.0.1:8080")
+            async with self._http_proxy_server:
+                await self._http_proxy_server.serve_forever()
+        except OSError as exc:
+            if "address already in use" in str(exc).lower() or exc.errno in (98, 10048):
+                logger.warning("HTTP proxy port 8080 already in use — assuming existing listener is active.")
+            else:
+                logger.error("HTTP proxy server failed to start: %s", exc)
+        except asyncio.CancelledError:
+            logger.info("HTTP proxy server task cancelled.")
+        except Exception as exc:
+            logger.error("HTTP proxy server error: %s", exc)
 
     # -------------------------------------------------------------------------
     # Per-connection proxy handler
@@ -536,12 +569,9 @@ class QVPNClient:
             cipher = AESGCM(self._session_key)
 
             target_json = json.dumps({"host": host, "port": port}).encode("utf-8")
-            if DEBUG_AES:
-                target_payload = target_json
-            else:
-                target_nonce = os.urandom(12)
-                target_ciphertext = cipher.encrypt(target_nonce, target_json, None)
-                target_payload = target_nonce + target_ciphertext
+            target_nonce = os.urandom(12)
+            target_ciphertext = cipher.encrypt(target_nonce, target_json, None)
+            target_payload = target_nonce + target_ciphertext
 
             logger.debug(
                 "[conn=%s] Sending target to Gateway (%d bytes)...",
@@ -559,21 +589,30 @@ class QVPNClient:
 
             # 6. Bi-directionally pipe traffic (no per-packet timeout — streaming phase)
 
+            # Pre-generate nonce pool to avoid a syscall on every encrypted packet
+            _NONCE_POOL_SIZE = 64
+            _nonce_pool: list[bytes] = []
+
+            def _refill_nonces() -> None:
+                blob = os.urandom(12 * _NONCE_POOL_SIZE)
+                _nonce_pool.extend(blob[i * 12:(i + 1) * 12] for i in range(_NONCE_POOL_SIZE))
+
+            _refill_nonces()
+
             async def pipe_proxy_to_gateway():
                 try:
                     while True:
-                        data = await proxy_reader.read(65536)
+                        data = await proxy_reader.read(131072)
                         if not data:
                             break
-                        if DEBUG_AES:
-                            payload = data
-                        else:
-                            nonce = os.urandom(12)
-                            ciphertext = cipher.encrypt(nonce, data, None)
-                            payload = nonce + ciphertext
+                        if not _nonce_pool:
+                            _refill_nonces()
+                        nonce = _nonce_pool.pop()
+                        ciphertext = cipher.encrypt(nonce, data, None)
+                        payload = nonce + ciphertext
 
                         gw_writer.write(len(payload).to_bytes(4, byteorder="big") + payload)
-                        if len(payload) > 262144: 
+                        if gw_writer.transport.get_write_buffer_size() > 262144:
                             await gw_writer.drain()
                         self.state.packets_sent += 1
                 except asyncio.CancelledError:
@@ -594,16 +633,13 @@ class QVPNClient:
                         length = int.from_bytes(length_bytes, byteorder="big")
                         encrypted_payload = await gw_reader.readexactly(length)
                         self.state.packets_received += 1
-                        
-                        if DEBUG_AES:
-                            decrypted = encrypted_payload
-                        else:
-                            nonce = encrypted_payload[:12]
-                            ciphertext = encrypted_payload[12:]
-                            decrypted = cipher.decrypt(nonce, ciphertext, None)
+                        nonce = encrypted_payload[:12]
+                        ciphertext = encrypted_payload[12:]
+                        decrypted = cipher.decrypt(nonce, ciphertext, None)
 
                         proxy_writer.write(decrypted)
-                        await proxy_writer.drain()
+                        if proxy_writer.transport.get_write_buffer_size() > 262144:
+                            await proxy_writer.drain()
                 except asyncio.CancelledError:
                     logger.debug("[conn=%s] gateway→proxy pipe cancelled.", conn_id)
                 except Exception as ex:
@@ -689,6 +725,12 @@ class QVPNClient:
 
         logger.info("[Disconnect] Cleanup started (session=%s).", self.state.session_id)
 
+        # Immediately signal UI so the button shows "Disconnecting…" and is disabled
+        try:
+            call_eel("update_ui_state", "disconnecting")
+        except Exception as exc:
+            logger.debug("[Disconnect] Failed to update UI to disconnecting: %s", exc)
+
         # Step 1 — deactivate Windows system proxy
         try:
             clear_system_proxy()
@@ -703,21 +745,42 @@ class QVPNClient:
         except Exception as exc:
             logger.error("[Disconnect] Failed to cancel heartbeat task: %s", exc)
 
-        # Step 3 — close local proxy server (stops accepting new connections)
-        try:
-            if self._local_server:
-                self._local_server.close()
-                await self._local_server.wait_closed()
-        except Exception as exc:
-            logger.error("[Disconnect] Failed to close local proxy server: %s", exc)
-
-        # Step 4 — cancel local server task
+        # Step 3 — cancel local server task first (aborts active connections),
+        # then close the server so wait_closed() returns promptly.
         try:
             if self._local_server_task and not self._local_server_task.done():
                 self._local_server_task.cancel()
                 await asyncio.wait([self._local_server_task], timeout=2.0)
         except Exception as exc:
             logger.error("[Disconnect] Failed to cancel local server task: %s", exc)
+
+        try:
+            if self._local_server:
+                self._local_server.close()
+                try:
+                    await asyncio.wait_for(self._local_server.wait_closed(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.warning("[Disconnect] Local proxy server did not close within 2s — continuing.")
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to close local proxy server: %s", exc)
+
+        # Step 4 — cancel HTTP proxy task first, then close server.
+        try:
+            if self._http_proxy_task and not self._http_proxy_task.done():
+                self._http_proxy_task.cancel()
+                await asyncio.wait([self._http_proxy_task], timeout=2.0)
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to cancel HTTP proxy task: %s", exc)
+
+        try:
+            if self._http_proxy_server:
+                self._http_proxy_server.close()
+                try:
+                    await asyncio.wait_for(self._http_proxy_server.wait_closed(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.warning("[Disconnect] HTTP proxy server did not close within 2s — continuing.")
+        except Exception as exc:
+            logger.error("[Disconnect] Failed to close HTTP proxy server: %s", exc)
 
         # Step 5 — reset session state and in-memory key
         try:
@@ -728,6 +791,7 @@ class QVPNClient:
             self._kem_ciphertext = None
             self._local_server = None
             self._local_server_ready.clear()
+            self._http_proxy_server = None
         except Exception as exc:
             logger.error("[Disconnect] Failed to reset session state: %s", exc)
 
@@ -776,8 +840,11 @@ def run_status_http_server(client: QVPNClient):
 # EEL TO ASYNCIO BRIDGE
 # ==========================================
 
-global_vpn_client = QVPNClient(gateway_ip="127.0.0.1", gateway_port=5151)
+global_vpn_client = QVPNClient(gateway_ip=GATEWAY_IP, gateway_port=GATEWAY_PORT)
 asyncio_loop = asyncio.new_event_loop()
+
+# Security agent — started in __main__, referenced by _emit_tunnel_event
+_security_agent: SecurityAgent | None = None
 
 
 def run_asyncio_thread(loop):
@@ -815,6 +882,11 @@ def emergency_cleanup():
         clear_system_proxy()
     except Exception as exc:
         logger.error("Emergency cleanup: clear_system_proxy failed: %s", exc)
+    if _security_agent:
+        try:
+            _security_agent.stop()
+        except Exception as exc:
+            logger.error("Emergency cleanup: security agent stop failed: %s", exc)
 
 
 def sig_handler(signum, frame):
@@ -834,6 +906,11 @@ signal.signal(signal.SIGTERM, sig_handler)
 # ==========================================
 
 if __name__ == "__main__":
+    # Start security agent (daemon threads: sysmon, USB, Windows log monitor, retry pusher)
+    _security_agent = SecurityAgent()
+    _security_agent.start()
+    logger.info("Security agent started (db=security/agent-db.db, push→gateway /api/v1/alerts)")
+
     # Start status HTTP server in a daemon thread
     status_thread = threading.Thread(target=run_status_http_server, args=(global_vpn_client,), daemon=True)
     status_thread.start()
@@ -849,7 +926,7 @@ if __name__ == "__main__":
     print("Launching QVPN UI...")
     try:
         # Port 8085 mode Edge
-        eel.start('index.html', size=(850, 600), mode='edge', port=8085)
+        eel.start('index.html', size=(850, 600), mode='edge', port=EEL_PORT)
     except (SystemExit, MemoryError, KeyboardInterrupt):
         logger.info("UI Closed. Shutting down background tasks...")
         asyncio.run_coroutine_threadsafe(global_vpn_client.disconnect(), asyncio_loop)
