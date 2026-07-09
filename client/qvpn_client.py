@@ -34,9 +34,9 @@ from client.local_proxy import handle_client as _http_proxy_handle_client
 from security.agent import SecurityAgent
 
 # Configure logging
-handlers = [logging.FileHandler(LOG_PATH)]
-if sys.stdout is not None:
-    handlers.append(logging.StreamHandler(sys.stdout))
+handlers = [logging.FileHandler(LOG_PATH, encoding='utf-8')]
+if sys.stdout is not None and sys.stderr is not None:
+    handlers.append(logging.StreamHandler())
 
 logging.basicConfig(
     level=logging.INFO,
@@ -515,7 +515,7 @@ class QVPNClient:
             logger.info("[conn=%s] TCP connection to Gateway established.", conn_id)
 
             # 3. Session Resumption — send session_id
-            # CLIENT → GATEWAY: [4-byte length][session_id]
+            # CLIENT -> GATEWAY: [4-byte length][session_id]
             logger.debug("[conn=%s] Sending session_id to Gateway...", conn_id)
             session_bytes = self.state.session_id.encode("utf-8")
             gw_writer.write(len(session_bytes).to_bytes(4, byteorder="big"))
@@ -564,7 +564,7 @@ class QVPNClient:
             logger.info("[conn=%s] Session resumed successfully.", conn_id)
 
             # 4. Encrypt and send target JSON
-            # CLIENT → GATEWAY: [4-byte length][nonce(12) + encrypted(target_json)]
+            # CLIENT -> GATEWAY: [4-byte length][nonce(12) + encrypted(target_json)]
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             cipher = AESGCM(self._session_key)
 
@@ -616,9 +616,9 @@ class QVPNClient:
                             await gw_writer.drain()
                         self.state.packets_sent += 1
                 except asyncio.CancelledError:
-                    logger.debug("[conn=%s] proxy→gateway pipe cancelled.", conn_id)
+                    logger.debug("[conn=%s] proxy->gateway pipe cancelled.", conn_id)
                 except Exception as ex:
-                    logger.debug("[conn=%s] proxy→gateway pipe closed: %s: %s", conn_id, type(ex).__name__, ex)
+                    logger.debug("[conn=%s] proxy->gateway pipe closed: %s: %s", conn_id, type(ex).__name__, ex)
                 finally:
                     try:
                         gw_writer.close()
@@ -641,9 +641,9 @@ class QVPNClient:
                         if proxy_writer.transport.get_write_buffer_size() > 262144:
                             await proxy_writer.drain()
                 except asyncio.CancelledError:
-                    logger.debug("[conn=%s] gateway→proxy pipe cancelled.", conn_id)
+                    logger.debug("[conn=%s] gateway->proxy pipe cancelled.", conn_id)
                 except Exception as ex:
-                    logger.debug("[conn=%s] gateway→proxy pipe closed: %s: %s", conn_id, type(ex).__name__, ex)
+                    logger.debug("[conn=%s] gateway->proxy pipe closed: %s: %s", conn_id, type(ex).__name__, ex)
                 finally:
                     try:
                         proxy_writer.close()
@@ -909,7 +909,7 @@ if __name__ == "__main__":
     # Start security agent (daemon threads: sysmon, USB, Windows log monitor, retry pusher)
     _security_agent = SecurityAgent()
     _security_agent.start()
-    logger.info("Security agent started (db=security/agent-db.db, push→gateway /api/v1/alerts)")
+    logger.info("Security agent started (db=security/agent-db.db, push->gateway /api/v1/alerts)")
 
     # Start status HTTP server in a daemon thread
     status_thread = threading.Thread(target=run_status_http_server, args=(global_vpn_client,), daemon=True)
