@@ -1,3 +1,4 @@
 {
-  "cmake.sourceDirectory": "C:/Users/Somil/OneDrive/Desktop/QVPN/libs/liboqs"
+  "cmake.sourceDirectory": "C:/Users/Somil/OneDrive/Desktop/QVPN/libs/liboqs",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
 }

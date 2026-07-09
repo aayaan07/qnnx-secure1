@@ -45,6 +45,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from client.config import (
     GATEWAY_API_URL,
     GATEWAY_API_KEY,
+    GATEWAY_IP,
+    GATEWAY_PORT,
     CLIENT_IDENTIFIER,
     HKDF_SALT,
     HKDF_INFO,
@@ -58,8 +60,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("QVPN_HeadlessTest")
 
-GATEWAY_HOST = "127.0.0.1"
-GATEWAY_PORT = 5151
+GATEWAY_HOST = GATEWAY_IP
 RESULTS: list[tuple[str, bool, float, str]] = []
 
 
@@ -79,7 +80,7 @@ async def test_gateway_health():
     t0 = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get("http://127.0.0.1:8001/health")
+            resp = await client.get(f"http://{GATEWAY_IP}:8001/health")
         elapsed = time.monotonic() - t0
         if resp.status_code == 200:
             data = resp.json()

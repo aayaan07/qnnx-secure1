@@ -10,7 +10,11 @@ The client is now ENVIRONMENT-INDEPENDENT: it no longer reads a .env file.
     Manager). On first run they are empty; the UI setup modal collects, verifies
     and stores them. `reload_secrets()` refreshes the in-memory copies after the
     modal saves new values.
+  * Application data (SQLite DB, logs) is written to a per-user writeable
+    directory (%LOCALAPPDATA%\\QVPN), never to Program Files.
 """
+import os
+import sys
 import socket
 import logging
 from urllib.parse import urlparse
@@ -20,6 +24,34 @@ from cryptography.hazmat.primitives import hashes
 from client import secrets_store
 
 logger = logging.getLogger("QVPN_Config")
+
+
+# ---------------------------------------------------------------------------
+# Writeable application-data directory (DB, logs)
+# ---------------------------------------------------------------------------
+def get_writeable_app_dir(app_name="QVPN"):
+    """
+    Returns a secure, writeable path for application data on Windows.
+    Defaults to %LOCALAPPDATA% (per-user) or falls back to %ProgramData% (machine-wide).
+    """
+    base_dir = os.environ.get("LOCALAPPDATA") or os.environ.get("PROGRAMDATA")
+    if not base_dir:
+        base_dir = os.path.expanduser("~")
+    app_dir = os.path.join(base_dir, app_name)
+    os.makedirs(app_dir, exist_ok=True)
+    return app_dir
+
+
+writeable_dir = get_writeable_app_dir("QVPN")
+DB_PATH = os.path.join(writeable_dir, "qvpn_threats.db")
+LOG_PATH = os.path.join(writeable_dir, "gateway.log")
+
+# Determine the correct root directory based on whether it's running as an
+# .exe (PyInstaller frozen build) or a plain script.
+if getattr(sys, "frozen", False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # ---------------------------------------------------------------------------
 # Hardcoded endpoints (same for every deployment)
