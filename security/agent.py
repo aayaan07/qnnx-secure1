@@ -520,52 +520,84 @@ class SystemMonitor:
     # -- Restricted processes ----------------------------------------------
 
     def _check_restricted_processes(self):
-        # Known safe parent processes for voluntarily opened terminals
+        # Known safe parent processes for voluntarily opened terminals.
         safe_parents = {
-            "explorer.exe", "code.exe", "cursor.exe", "pycharm64.exe", 
-            "devenv.exe", "windowsterminal.exe", "idea64.exe"
+            "explorer.exe", "code.exe", "cursor.exe", "pycharm64.exe",
+            "devenv.exe", "windowsterminal.exe", "idea64.exe",
+            # Common interactive shells/launchers that legitimately spawn terminals
+            "conhost.exe", "cmd.exe", "powershell.exe", "wt.exe", "bash.exe",
         }
-        # Suspicious command line flags commonly used by malware/background scripts
+        # Command-line flags strongly associated with malware / hidden execution.
+        # Presence of any of these is treated as real evidence of malice.
         suspicious_flags = {
-            "-windowstyle hidden", "-w hidden", "-encodedcommand", "-ec", 
-            "-nop", "-noninteractive", "-bypass"
+            "-windowstyle hidden", "-w hidden", "-encodedcommand", "-enc ",
+            "-ec ", "-nop ", "-noprofile", "-noninteractive", "-bypass",
+            "downloadstring", "iex ", "invoke-expression", "frombase64string",
         }
+
+        # Track which PIDs are alive this poll so we can prune stale entries and
+        # avoid unbounded growth / PID-reuse false negatives.
+        live_pids: set[int] = set()
 
         for proc in psutil.process_iter(["pid", "name", "ppid"]):
             try:
                 name = proc.info["name"].lower() if proc.info["name"] else ""
                 pid  = proc.info["pid"]
-                
-                if name in RESTRICTED_PROCESSES and pid not in self._alerted_pids:
-                    is_suspicious = True
-                    
+                if name not in RESTRICTED_PROCESSES:
+                    continue
+
+                live_pids.add(pid)
+                if pid in self._alerted_pids:
+                    continue  # already assessed this exact process instance
+
+                # Assess evidence. Default is BENIGN — we only alert on real
+                # signals, not on the mere existence of a shell (which is normal
+                # on desktops and was the source of alert floods).
+                severity = None
+                reason = ""
+                try:
+                    cmdline_list = proc.cmdline()
+                    cmdline = " ".join(cmdline_list).lower() if cmdline_list else ""
+                    has_suspicious_flags = any(flag in cmdline for flag in suspicious_flags)
+
+                    parent_name = ""
                     try:
-                        parent = psutil.Process(proc.info["ppid"])
-                        parent_name = parent.name().lower()
-                        
-                        cmdline_list = proc.cmdline()
-                        cmdline = " ".join(cmdline_list).lower() if cmdline_list else ""
-                        
-                        has_suspicious_flags = any(flag in cmdline for flag in suspicious_flags)
-                        
-                        # If launched interactively by a user and no hidden/malicious flags exist, it's safe
-                        if parent_name in safe_parents and not has_suspicious_flags:
-                            is_suspicious = False
-                            
+                        parent_name = psutil.Process(proc.info["ppid"]).name().lower()
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        # If we can't inspect the parent or cmdline, assume it's suspicious
-                        pass
-                        
-                    if is_suspicious:
-                        self._emit(
-                            "RESTRICTED_PROCESS", "CRITICAL",
-                            f"Suspicious restricted process detected: {name} (PID {pid})",
-                        )
-                    
-                    # Always mark as checked so we don't spam checks for the same PID
-                    self._alerted_pids.add(pid)
+                        parent_name = ""  # unknown parent — low confidence, not proof of malice
+
+                    if has_suspicious_flags:
+                        # Hidden/encoded/download execution — genuine red flag.
+                        severity = "CRITICAL"
+                        reason = f"hidden/encoded execution flags: {cmdline[:120]}"
+                    elif parent_name and parent_name not in safe_parents:
+                        # Spawned by a non-interactive, non-whitelisted parent
+                        # without malicious flags — worth noting, but low severity.
+                        severity = "MEDIUM"
+                        reason = f"spawned by unexpected parent '{parent_name}'"
+                    # else: interactive/whitelisted shell, no bad flags -> no alert
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    # We couldn't read the cmdline. WITHOUT evidence we do NOT
+                    # escalate (the old code defaulted to CRITICAL here, which
+                    # caused most false positives, especially when un-elevated).
+                    severity = None
+
+                if severity is not None:
+                    self._emit(
+                        "RESTRICTED_PROCESS", severity,
+                        f"Restricted process {name} (PID {pid}) — {reason}",
+                    )
+
+                # Mark this PID assessed regardless of outcome so we don't
+                # re-evaluate the same instance every 5 s.
+                self._alerted_pids.add(pid)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
+
+        # Prune assessed PIDs that are no longer running so the set stays small
+        # and a future process reusing a PID is assessed fresh.
+        self._alerted_pids &= live_pids
 
 
 # ---------------------------------------------------------------------------
